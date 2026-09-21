@@ -1,3 +1,10 @@
 node_modules/
 *.log
 .DS_Store
+.idea/
+.vscode/
+
+# Local harness sandboxes used during development. Never commit these: they can
+# contain a linked .credentials.yaml and session transcripts.
+.dsh-dev/
+/tmp-dsh/

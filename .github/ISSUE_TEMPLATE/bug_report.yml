@@ -1,0 +1,54 @@
+name: Bug report
+description: Something behaved differently from what the documentation says.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Two details make bugs here much faster to fix:
+
+        1. **The dsh version**, because the tool-authoring DSL changed between
+           0.1.5-rc.2 and 0.1.6-alpha.2.
+        2. **Whether the memory room was empty**, because an empty room is a valid
+           state and not a failure.
+
+  - type: input
+    id: dsh-version
+    attributes:
+      label: dsh version
+      description: The output of `dsh --version`.
+      placeholder: 0.1.6-alpha.2
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: Windows 11 / Ubuntu 24.04 / macOS 15
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: The exact tool call and its raw output, if you have them.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: room
+    attributes:
+      label: Memory room contents
+      description: Output of `find .dsh/memory -type f` for the workspace that misbehaved.
+      render: text
+    validations:
+      required: false

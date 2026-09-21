@@ -1,0 +1,69 @@
+{
+  "name": "dsh-zcode-scribe",
+  "version": "0.1.0",
+  "description": "Long-term memory for DeepSeek Harness whose writer is a narrowed subagent: the component that decides what to remember runs with network, shell, MCP and subagent tools removed, and its remaining writes are confined to one directory by argument-level guards.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BOWLUNA/dsh-zcode-scribe.git"
+  },
+  "homepage": "https://github.com/BOWLUNA/dsh-zcode-scribe#readme",
+  "bugs": {
+    "url": "https://github.com/BOWLUNA/dsh-zcode-scribe/issues"
+  },
+  "engines": {
+    "node": ">=20",
+    "dsh": ">=0.1.5-rc.2 <0.2.0 || >=0.1.6-alpha.1 <0.2.0"
+  },
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "src",
+    "cordis.patch.yml",
+    "README.md",
+    "README.zh.md",
+    "LICENSE",
+    "package.json"
+  ],
+  "peerDependencies": {
+    "@deepseek-ai/dsh-tools": ">=0.1.5-rc.2 <0.2.0 || >=0.1.6-alpha.1 <0.2.0",
+    "@deepseek-ai/schemastery": "^3.18.2"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "scripts": {
+    "test": "node test/run.mjs",
+    "guard:pairing": "node tools/verify-translation-pairing.mjs",
+    "guard:numbers": "node tools/verify-doc-numbers.mjs",
+    "guard:version": "node tools/verify-version-consistency.mjs",
+    "guards": "node test/run.mjs && node tools/verify-translation-pairing.mjs && node tools/verify-doc-numbers.mjs && bash -n install.sh && bash -n uninstall.sh"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek",
+    "deepseek-harness",
+    "cordis",
+    "zcode",
+    "memory",
+    "long-term-memory",
+    "agent-memory",
+    "subagent",
+    "permission-narrowing",
+    "path-traversal",
+    "prompt-injection",
+    "memory-poisoning",
+    "owasp-asi06",
+    "local-first",
+    "offline",
+    "markdown"
+  ]
+}

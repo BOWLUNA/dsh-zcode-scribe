@@ -1,0 +1,45 @@
+name: Feature request
+description: Propose a capability, or argue that a current safety property is wrong.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This plugin exists for three safety properties, and every proposal is
+        weighed against them: a narrowed writer, skip conditions, and path safety.
+        A request that would weaken one of those must say which property it trades
+        away and what replaces it.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you unable to do today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behaviour
+    validations:
+      required: true
+
+  - type: dropdown
+    id: safety
+    attributes:
+      label: Does this touch a documented safety property?
+      options:
+        - No - it is additive and confined to the read path
+        - Yes - it changes how the writer is narrowed
+        - Yes - it changes which paths may be read or written
+        - Yes - it changes what gets remembered
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternative
+    attributes:
+      label: What else did you consider
+    validations:
+      required: false

@@ -1,0 +1,11 @@
+# Line endings are semantic here, not cosmetic: the index cap counts characters,
+# and CRLF inflates that count.
+* text=auto eol=lf
+
+*.md text eol=lf
+*.mjs text eol=lf
+*.yml text eol=lf
+
+*.png binary
+*.jpg binary
+*.webp binary

@@ -1,0 +1,49 @@
+# Every push and pull request runs the suite against a real harness install.
+#
+# Why CI installs a harness at all: the plugin imports `@deepseek-ai/dsh-tools`
+# and `@deepseek-ai/schemastery`, which are host peers rather than runtime
+# dependencies, and the tool-authoring DSL differs between the two dsh lines this
+# package supports (property-level `required` is rejected by one and accepted by
+# the other). Testing a single version would report green about a configuration
+# half the users do not run.
+#
+# The matrix pins exactly the versions `engines.dsh` declares;
+# tools/verify-version-consistency.mjs fails the build when the two drift apart.
+name: test
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        node-version: ['22']
+        dsh: ['0.1.5-rc.2', '0.1.6-alpha.2']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - name: Install the harness for its peer packages
+        run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@${{ matrix.dsh }}
+      - name: Guard 1 - tests
+        run: node test/run.mjs
+      - name: Guard 2 - bilingual pairing (check only; CI never writes)
+        run: node tools/verify-translation-pairing.mjs
+      - name: Guard 3 - documented numbers vs the live run
+        run: node tools/verify-doc-numbers.mjs
+      - name: Guard 4 - shell syntax
+        shell: bash
+        run: bash -n install.sh && bash -n uninstall.sh
+      - name: Guard 5 - version consistency against the matrix entry
+        run: node tools/verify-version-consistency.mjs --dsh ${{ matrix.dsh }}

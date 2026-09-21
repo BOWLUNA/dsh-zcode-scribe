@@ -1,0 +1,37 @@
+# Mount the memory capability into a profile.
+#
+# The row id is `scribe`. Row ids are global across every composed patch layer,
+# so a collision here is a hard boot failure rather than a silent override —
+# before adding a row, grep the layers you compose with:
+#
+#   dsh --profile web --dump-config | grep -c '^- id: scribe'
+#
+# Every key below has a default, so an empty config is valid. Note that a patch
+# entry REPLACES the whole `config` map rather than merging into it: an override
+# must restate every key it means to keep.
+- insert:
+    - id: scribe
+      name: dsh-scribe
+      config:
+        # The memory room. Relative paths resolve against the session workspace.
+        dir: .dsh/memory
+        # Index cap, in the units Claude Code tuned and published: whichever is
+        # reached first applies. An over-cap write SUCCEEDS and returns an error
+        # telling the writer to shorten the index — it is never truncated quietly.
+        indexLineLimit: 200
+        indexCharLimit: 25000
+        # Recall manifest: filenames plus their `description`, never bodies.
+        manifestFileLimit: 200
+        manifestPreviewLines: 30
+        # Automatic extraction, performed by the narrowed writer.
+        autoExtract: true
+        # The writer runs on a cheap model; extraction is a read-decide-write task.
+        extractorModel: deepseek-v4-flash
+        maxWriterTurns: 4
+        # Skip condition ②b: a user turn with fewer words than this cannot carry
+        # a memory worth extracting.
+        minUserWords: 3
+        # Safety switches. Turning either off removes a property this plugin
+        # exists to provide; the reason string in the config docs says which.
+        narrowWriter: true
+        refuseSecrets: true
