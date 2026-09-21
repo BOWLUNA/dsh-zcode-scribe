@@ -1,4 +1,5 @@
 # Contributing
+English | [中文](CONTRIBUTING.zh.md)
 
 Thanks for looking. This file covers how to run things and what will be checked. The
 reasoning behind the rules is in `AGENTS.md` (the machine-facing list) and

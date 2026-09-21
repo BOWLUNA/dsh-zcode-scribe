@@ -1,4 +1,5 @@
 # Tests
+English | [中文](README.zh.md)
 
 ```bash
 node test/run.mjs

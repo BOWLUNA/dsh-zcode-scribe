@@ -118,8 +118,8 @@ still outstanding — see `docs/ARCHITECTURE.md` §7 M6.
 
 ```
 $ npm pack --dry-run --json
-dsh-scribe@0.1.0 · 8 files · 41876 B unpacked · 18179 B packed
-  AGENTS.md  LICENSE  README.md  README.zh.md  cordis.patch.yml  index.js  package.json  src/paths.mjs
+dsh-zcode-scribe@1.0.0 · 8 files · 52297 B unpacked · 21093 B packed
+  LICENSE  README.i18n.yaml  README.md  README.zh.md  cordis.patch.yml  index.js  package.json  src/paths.mjs
 ```
 `index.js` / `cordis.patch.yml` / `package.json` all present; the `files` whitelist matches the
 real packlist.

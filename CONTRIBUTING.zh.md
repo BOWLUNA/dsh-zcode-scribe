@@ -1,4 +1,5 @@
 # 参与贡献
+[English](CONTRIBUTING.md) | 简体中文
 
 感谢驻足。本文件讲**怎么跑**与**会被检查什么**；规则的来由在 `AGENTS.md`
 （面向机器的清单）与 `docs/ARCHITECTURE.md`。

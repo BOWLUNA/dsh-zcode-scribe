@@ -1,4 +1,5 @@
 # 测试
+[English](README.md) | 简体中文
 
 ```bash
 node test/run.mjs

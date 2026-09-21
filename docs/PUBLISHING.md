@@ -39,9 +39,9 @@ green guard over a lie.
 ## 3. Commit, tag, push
 
 ```bash
-git add -A && git commit -m "feat(0.1.0): …"
-git tag -a v0.1.0 -m "v0.1.0"     # annotated, and the message is the version name
-git push origin main && git push origin v0.1.0
+git add -A && git commit -m "release: 1.0.0"
+git tag -a v1.0.0 -m "v1.0.0"     # annotated, and the message is the version name
+git push origin main && git push origin v1.0.0
 gh run list --repo BOWLUNA/dsh-zcode-scribe --limit 6
 ```
 
@@ -79,7 +79,7 @@ pnpm's default `minimumReleaseAge` is 24 hours. Immediately after a release,
 version**. Pin it:
 
 ```bash
-dsh plugin --profile web add dsh-zcode-scribe@0.1.0
+dsh plugin --profile web add dsh-zcode-scribe@1.0.0
 ```
 
 pnpm then adds a `minimumReleaseAgeExclude` entry by itself.

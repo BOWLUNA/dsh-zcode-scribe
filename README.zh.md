@@ -1,5 +1,5 @@
 # dsh-zcode-scribe
-`v0.1.0` · 在 dsh `>=0.1.5-rc.2 <0.2.0 || >=0.1.6-alpha.1 <0.2.0` 上开发并验证过。
+`v1.0.0` · 在 dsh `>=0.1.5-rc.2 <0.2.0 || >=0.1.6-alpha.1 <0.2.0` 上开发并验证过。
 
 **给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的长期记忆——写记忆的那个组件是一个被收窄了权限的子代理。**
 

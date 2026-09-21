@@ -1,5 +1,5 @@
 # dsh-zcode-scribe
-`v0.1.0` · developed and verified against dsh `>=0.1.5-rc.2 <0.2.0 || >=0.1.6-alpha.1 <0.2.0`.
+`v1.0.0` · developed and verified against dsh `>=0.1.5-rc.2 <0.2.0 || >=0.1.6-alpha.1 <0.2.0`.
 
 **Long-term memory for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) whose writer is a narrowed subagent.**
 

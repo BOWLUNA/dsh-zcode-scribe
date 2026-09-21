@@ -112,12 +112,13 @@ Everything below was learned from someone else. The row says what we take.
 ## 2. Product identity
 
 ```
-package name   dsh-scribe
+package name   dsh-zcode-scribe
+version        1.0.0
 row id         scribe
 category       memory
 platforms      Windows / macOS / Linux (pure host — no native code, no network)
 runtime deps   none (node: builtins only)
-engines        node ^22.19.0 || >=24.0.0   dsh >=0.1.5-rc.2 <0.2.0-0
+engines        node >=20   dsh >=0.1.5-rc.2 <0.2.0 || >=0.1.6-alpha.1 <0.2.0
 ```
 
 `scribe` is the row id: a scribe writes what it is told, and this one is only allowed to

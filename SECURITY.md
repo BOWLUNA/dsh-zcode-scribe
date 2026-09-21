@@ -1,10 +1,11 @@
 # Security policy
+English | [中文](SECURITY.zh.md)
 
 ## Supported versions
 
 | Version | Supported | dsh lines tested |
 | --- | --- | --- |
-| 0.1.0 | yes | `0.1.5-rc.2`, `0.1.6-alpha.2` |
+| 1.0.0 | yes | `0.1.5-rc.2`, `0.1.6-alpha.2` |
 
 This project is pre-1.0 and has exactly one release line. Security fixes go to the
 newest release only.
