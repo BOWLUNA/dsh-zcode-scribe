@@ -13,7 +13,12 @@
 name: release
 
 permissions:
-  contents: read
+  # ★ `contents` must be write, not read: besides publishing to npm this workflow
+  #   creates the GitHub Release. It used to be read and had no such step, so
+  #   pushing a tag left the repository's Releases panel frozen — the code was
+  #   updated and the front page looked untouched. Every v1.0.0 Release on this
+  #   fleet was created by hand through the API for exactly this reason.
+  contents: write
   id-token: write
 
 on:
@@ -35,8 +40,16 @@ jobs:
       - name: Install the harness for its peer packages
         run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.6-alpha.2
 
+      # `dsh plugin add` forwards to pnpm, which dsh does not bundle.
+      - name: Install pnpm (dsh forwards `plugin add` to it)
+        run: npm install -g pnpm@12.4.2
+
       # The same guards the test workflow runs. A release that skips them is a
-      # release nobody checked.
+      # release nobody checked — and on 2026-09-21 that is precisely what went
+      # out: 1.0.0 passed every guard below and could not boot, because the row
+      # `name` in cordis.patch.yml still held the pre-rename package. Guard 6
+      # boots the plugin against the harness, so this workflow can no longer tag
+      # a release that installs and then fails to start.
       - name: Guards
         run: |
           node test/run.mjs
@@ -44,9 +57,40 @@ jobs:
           node tools/verify-doc-numbers.mjs
           node tools/verify-version-consistency.mjs --dsh 0.1.6-alpha.2
           bash -n install.sh && bash -n uninstall.sh
+          node tools/verify-boot.mjs --port 31859
 
       # Publishing twice is not an error worth failing on, but publishing a
       # *different* build under an existing version is impossible, so the check is
       # "does this version exist yet", not "did the last run succeed".
       - name: Publish unless this version already exists
         run: node tools/publish-if-new.mjs
+
+      # ★ Create the GitHub Release, with the body lifted straight out of the
+      #   CHANGELOG entry for this tag rather than retyped (retyped text drifts).
+      #   `if: always()` is load-bearing, not decoration: npm publishing still
+      #   fails on this package because its Trusted Publisher is not configured
+      #   on npmjs.com, and the Release must not be collateral damage of a setup
+      #   gap that has nothing to do with the code. Measured on
+      #   `dsh-zcode-farm` 1.0.1 — the npm step failed and this step still ran.
+      - name: Create the GitHub Release (body taken from the CHANGELOG)
+        if: ${{ always() && startsWith(github.ref, 'refs/tags/v') }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="${{ github.ref_name }}"
+          VER="${TAG#v}"
+          node -e '
+            const fs = require("fs");
+            const [ver, file, out] = process.argv.slice(1);
+            const text = fs.readFileSync(file, "utf8");
+            const start = text.indexOf("## [" + ver + "]");
+            if (start === -1) { console.error("CHANGELOG has no section for " + ver); process.exit(1); }
+            const rest = text.slice(start + 1);
+            const next = rest.indexOf("\n## [");
+            fs.writeFileSync(out, (next === -1 ? rest : rest.slice(0, next)).trimEnd() + "\n");
+          ' "$VER" CHANGELOG.md /tmp/release-notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists - nothing to do"
+            exit 0
+          fi
+          gh release create "$TAG" --title "$TAG" --notes-file /tmp/release-notes.md

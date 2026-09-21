@@ -22,6 +22,22 @@
   「子代理的能力集真的能通过公开接缝被收窄」。如果证明不了，抽取功能**不上线**，
   而不是退化成让主 agent 用全套工具去写记忆。
 
+### 修复
+
+- **打了 tag 的 1.0.0 装不上。** 包名从 `dsh-scribe` 改成 `dsh-zcode-scribe` 之后，
+  `cordis.patch.yml` 里的行名仍是旧的；而装载器在应用整棵树时，是把该字段当作模块名、
+  **从 profile 目录**去解析的 —— 于是 profile 直接死在 `Cannot find package 'dsh-scribe'`。
+  它能装上、单测全过、`--dump-config` 干净且 stderr 为空；但这几项**都不 apply 插件**，
+  所以 CI 一直是绿的。现在行名与 `package.json` 一致。
+- `tools/verify-boot.mjs`：一道把插件真装进一次性 `DSH_HOME` 并真启动的守卫，要求打出监听 URL
+  且 stderr 为空。它同时直接断言「行名 = 包名」这条不变量 —— 因为在这条 harness 线上，
+  `--dump-config` 根本没有任何解析状态的痕迹可查。两道工作流里都会跑。
+- `test/run.mjs` 钉死 `--test-reporter=tap`。Node 24 把「stdout 非终端」时的默认 reporter
+  从 `tap` 改成了 `spec`，导致 `tools/verify-doc-numbers.mjs` 在 Node 24 上读不到 live 摘要，
+  而在 Node 22 上仍然正常。
+- `release.yml` 现在会从 tag 建出 GitHub Release。它原先声明的是 `contents: read` 且没有这一步，
+  于是推了 tag 只更新了代码，仓库的 Releases 面板毫无动静。
+
 ---
 
 ## [1.0.0] — 2026-09-21

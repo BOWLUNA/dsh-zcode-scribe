@@ -1,8 +1,18 @@
 # Mount the memory capability into a profile.
 #
-# The row id is `scribe`. Row ids are global across every composed patch layer,
-# so a collision here is a hard boot failure rather than a silent override —
-# before adding a row, grep the layers you compose with:
+# The row id is `scribe`, but the row `name` is the **package name** —— the two
+# are not the same thing and only `id` may be a short internal nickname. The
+# loader resolves `name` as a module specifier **from the profile directory**
+# while applying the tree, so `name` must be exactly what `package.json` says.
+# Getting this wrong ships a plugin that installs cleanly, passes `--dump-config`
+# with an empty stderr, passes every unit test — and then takes the profile down
+# at boot with `ERR_MODULE_NOT_FOUND`. That is exactly what happened here: the
+# package was renamed from `dsh-scribe` to `dsh-zcode-scribe` and this line was
+# missed. `tools/verify-boot.mjs` now exists because of it.
+#
+# Row ids are global across every composed patch layer, so a collision here is a
+# hard boot failure rather than a silent override — before adding a row, grep the
+# layers you compose with:
 #
 #   dsh --profile web --dump-config | grep -c '^- id: scribe'
 #
@@ -11,7 +21,7 @@
 # must restate every key it means to keep.
 - insert:
     - id: scribe
-      name: dsh-scribe
+      name: dsh-zcode-scribe
       config:
         # The memory room. Relative paths resolve against the session workspace.
         dir: .dsh/memory

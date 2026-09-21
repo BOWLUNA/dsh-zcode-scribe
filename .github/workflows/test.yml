@@ -34,6 +34,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
+      # `dsh plugin add` forwards to pnpm, which dsh does not bundle: without it
+      # dsh exits 127 and the boot check below would fail for the wrong reason.
+      # Pinned to the version this repository's boot records were taken with.
+      - name: Install pnpm (dsh forwards `plugin add` to it)
+        run: npm install -g pnpm@12.4.2
       - name: Install the harness for its peer packages
         run: npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@${{ matrix.dsh }}
       - name: Guard 1 - tests
@@ -47,3 +52,11 @@ jobs:
         run: bash -n install.sh && bash -n uninstall.sh
       - name: Guard 5 - version consistency against the matrix entry
         run: node tools/verify-version-consistency.mjs --dsh ${{ matrix.dsh }}
+      # The only guard that applies the plugin to a real harness. Every other
+      # step here reads pure logic or composed configuration, and on 2026-09-21
+      # that gap shipped a 1.0.0 which passed all of them and then failed to
+      # boot: `cordis.patch.yml` still named the pre-rename package, and the
+      # loader resolves that name while applying the tree. `--dump-config` was
+      # `exit 0` with an empty stderr at the same moment. See tools/verify-boot.mjs.
+      - name: Guard 6 - boot check (the plugin installs and actually starts)
+        run: node tools/verify-boot.mjs --port 31859

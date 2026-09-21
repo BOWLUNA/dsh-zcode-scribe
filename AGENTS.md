@@ -6,7 +6,7 @@ Instructions for coding agents working in this repository. The human-facing entr
 ## What this is
 
 One artifact, not two: a **Cordis plugin** that is also a **profile bundle**. It is
-mounted by `dsh plugin --profile <name> add dsh-scribe`, which forwards to pnpm in the
+mounted by `dsh plugin --profile <name> add dsh-zcode-scribe`, which forwards to pnpm in the
 profile directory and then reconciles `dsh.profile.bundles` by detecting the
 `dsh.bundle.patch` field in `package.json`.
 
@@ -101,17 +101,33 @@ Ordered by how expensive the failure is.
 5. **Row id `scribe` is global across every composed patch layer.** A collision is a hard
    boot failure, not an override. Repeat the `--dump-config | grep 'id: scribe'` check
    before any change to `cordis.patch.yml`.
+   **The row's `name` is not a nickname — it is a module specifier, and it must equal
+   `package.json`'s `name`.** The `id` may be short (`scribe`); the `name` may not. It is
+   resolved from the *profile* directory while the tree is applied, so a stale value
+   produces a plugin that installs, passes every unit test and passes `--dump-config`,
+   then fails to boot. That is what 1.0.0 shipped (`cordis.patch.yml` kept `dsh-scribe`
+   after the package became `dsh-zcode-scribe`). `tools/verify-boot.mjs` asserts it.
+   A rename touches four places: `package.json` `name`, the repository name, this row's
+   `name`, and the local directory name.
 6. **`src/**` stays host-free.** No `@deepseek-ai/*` import and no `node:fs` under `src/`.
    That is what makes the safety logic testable as a table of strings instead of through a
    live harness, and it is why the suite runs in under a second.
-7. **The README's status banner stays honest.** It currently says "not installable yet".
-   Do not soften it until M0 has actually run.
+7. **The README's status banner stays honest, in both directions.** It must keep naming
+   what does *not* exist yet — writes, extraction and the narrowed writer, all gated on
+   M0 — and must not widen the claim before M0 has run. It must equally not understate
+   what does work: the read half boots, and a real model session on the WSL line used
+   `scribe_recall` to answer from a memory room.
 8. **Never commit a throwaway `DSH_HOME`, a memory room, or a session transcript.** See
    `.gitignore`.
 9. **"Installed" means a real `--port` boot with empty stderr, not a clean `--dump-config`.**
    See the two traps above. Every claim in `README.md` about what works must be traceable to
-   either a `node test/run.mjs` assertion or a recorded boot, and the boot's raw output belongs
-   in `docs/MEASUREMENTS.md` once that file exists.
+   either a `node test/run.mjs` assertion or a recorded boot, and the boot's raw output
+   belongs in `docs/MEASUREMENTS.md`. `tools/verify-boot.mjs` is that boot, in CI.
+10. **`test/run.mjs` pins `--test-reporter=tap`.** Node 24 changed the default reporter for
+    a non-TTY stdout from `tap` to `spec`, which changes `# pass 101` into `ℹ pass 101` and
+    leaves `tools/verify-doc-numbers.mjs` unable to read the live summary on one machine and
+    fine on another. Do not unpin it, and do not write a new consumer that parses whatever
+    the environment emits.
 
 ## The M0 gate
 
@@ -129,7 +145,7 @@ source but never executed**.
 | `restrict()` throws for the child context | try attaching from a `ctx.on('agent/created')` listener against the child's `agent.ctx` |
 | neither works | the design changes, or the project stops. Report the finding; do not paper over it. |
 
-Record the probe's raw output in `docs/MEASUREMENTS.md` when that file exists.
+Record the probe's raw output in `docs/MEASUREMENTS.md`.
 
 ## Repository conventions
 
@@ -137,14 +153,19 @@ Modelled on [`BOWLUNA/dsh-custom-mode`](https://github.com/BOWLUNA/dsh-custom-mo
 
 - **Bilingual doc pairs** — every user-facing document exists as `X.md` (English) and
   `X.zh.md` (Chinese), with `X.i18n.yaml` recording the git blob hash of each side at the
-  last confirmed-consistent revision. Change one side, change the other, re-record.
-  **Status: the pairing manifest and its verifier (`tools/verify-translation-pairing.mjs`)
-  do not exist yet.** `README.md` / `README.zh.md` are the first pair; the manifest lands
-  with the tooling in M6. Until then, treat a pair as unverified by definition.
+  last confirmed-consistent revision. Change one side, change the other, re-record, in that
+  order: numbers first, then re-record the hashes, then re-run the number guard. The
+  verifier is `tools/verify-translation-pairing.mjs` and it runs in CI.
+- **Documents declared English-only** carry no pair, and the verifier prints each one with its
+  reason on every run — `AGENTS.md`, `docs/ARCHITECTURE.md`, `docs/MEASUREMENTS.md`,
+  `docs/PUBLISHING.md`, `docs/TROUBLESHOOTING.md`. That list is the honest statement of the
+  gap, not an assumption: adding a document means deciding which list it belongs in.
 - **Invariants over instructions.** A rule that matters gets a test, not a paragraph. This
-  file's "what must not break" list is the *index* into those tests.
-- **Bilingual commit-visible artefacts**: `docs/ARCHITECTURE.md` is English-only today for the
-  same reason — its pair arrives with the manifest.
+  file's "what must not break" list is the *index* into those tests, and
+  `tools/verify-boot.mjs` is the one that applies the plugin to a real harness.
+- **A guard is not finished until a mutation has made it fail.** See
+  `docs/TROUBLESHOOTING.md` § "A guard that passes while testing nothing" — this repository
+  shipped one that did exactly that.
 
 ## Working in the shared workspace
 

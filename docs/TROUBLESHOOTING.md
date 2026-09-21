@@ -37,6 +37,61 @@ the tree is really applied. Always do a real boot before believing a change is s
 DSH_HOME=<throwaway> "$NODE" "$DSHBIN" --profile web --port 0 --no-open
 ```
 
+### The same symptom when the row `name` goes stale after a rename
+
+```
+Error: dsh: plugin tree failed to load: failed to apply loader entry include (cordis:include):
+       failed to import loader entry scribe (dsh-scribe): Cannot find package 'dsh-scribe'
+       imported from …/profiles/web/
+```
+
+This is the other way into the trap above, and it bit 1.0.0. The package had been
+renamed from `dsh-scribe` to `dsh-zcode-scribe`; `package.json`, the repository and
+the local directory were all updated, and `cordis.patch.yml` was not. The row's
+`id` may be a short nickname (`scribe`), but its **`name` is a module specifier**,
+resolved from the *profile* directory while the tree is applied — so it has to be
+exactly the package name.
+
+Two measurements from diagnosing it, both worth keeping:
+
+- **`--dump-config` shows no trace of resolution either way.** `packageDir` and
+  `__dshPluginOwner` are absent on dsh `0.1.6-alpha.2` whether the name resolves or
+  not, and the dump is exit 0 with an empty stderr in both cases. Do not write a
+  check that greps the dump for a resolution marker — there isn't one on this line.
+  The one thing the dump *does* expose is the row itself, so the invariant is
+  checkable: the row's `name` must equal `package.json`'s `name`.
+- **A rename has four places, not three.** `package.json` `name`, the repository
+  name, `cordis.patch.yml`'s row `name`, and the local directory name. Missing the
+  third produces a plugin that installs, passes every unit test and passes
+  `--dump-config`, and then takes the profile down. `tools/verify-boot.mjs` asserts
+  it (assertion B) and boots the result (assertion C).
+
+## A guard that passes while testing nothing
+
+`tools/verify-boot.mjs` was written to catch the rename defect above, and its first
+draft was worthless. The boot step spawned the harness without passing `env`, so
+`DSH_HOME` was never set and the boot silently used the developer's own `~/.dsh` —
+a profile that starts perfectly well. The guard printed PASS no matter what the
+repository did.
+
+It was found by mutating the repository on purpose and noticing that a mutation it
+**should** have caught came back green. The rule that follows:
+
+- **A guard is not finished until a mutation makes it fail, and you have seen which
+  assertion failed.** "It passes on the good tree" says nothing.
+- **Mutate each assertion separately.** Making the row `name` stale only proved
+  assertion B; assertion C stayed unproven until a mutation was made that B does not
+  look at — a module-level throw with the name left correct — and C went red on it.
+- **A vacuous guard is worse than no guard**, because it converts "nobody checked"
+  into "checked, and it is fine".
+
+The same trap in a different costume: the test runner's output format. `test/run.mjs`
+pins `--test-reporter=tap` because Node 24 changed the default reporter for a
+non-TTY stdout from `tap` to `spec`, which turns `# pass 101` into `ℹ pass 101` and
+leaves `tools/verify-doc-numbers.mjs` unable to read the live summary on one machine
+and fine on another. Pin the format where it is produced; do not parse whatever the
+environment happens to emit.
+
 ## `required must be true when present`
 
 ```

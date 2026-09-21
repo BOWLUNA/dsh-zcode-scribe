@@ -25,6 +25,24 @@ of work rather than five independent projects.
   capability set can be narrowed through a public seam. If that cannot be done, extraction does
   not ship rather than falling back to the main agent writing memory with its full toolset.
 
+### Fixed
+
+- **1.0.0 as tagged cannot be installed.** `cordis.patch.yml` still named the package
+  `dsh-scribe` after the rename to `dsh-zcode-scribe`, and the loader resolves that field as a
+  module specifier from the profile directory while applying the tree — so the profile died
+  with `Cannot find package 'dsh-scribe'`. It installed, passed every unit test, and produced a
+  clean `--dump-config` with an empty stderr; none of those applies the plugin, which is why
+  CI was green. The row `name` now matches `package.json`.
+- `tools/verify-boot.mjs`: a guard that installs the plugin into a throwaway `DSH_HOME` and
+  boots it, requiring a listening URL and an empty stderr. It also checks the row
+  `name`/package-name invariant directly, because `--dump-config` carries no resolution marker
+  on this harness line to check instead. Runs in both workflows.
+- `test/run.mjs` pins `--test-reporter=tap`. Node 24 changed the default reporter for a non-TTY
+  stdout from `tap` to `spec`, which stopped `tools/verify-doc-numbers.mjs` reading the live
+  summary on Node 24 while it kept working on Node 22.
+- `release.yml` creates the GitHub Release from the tag. It declared `contents: read` and had
+  no such step, so pushing a tag updated the code and left the Releases panel untouched.
+
 ---
 
 ## [1.0.0] — 2026-09-21

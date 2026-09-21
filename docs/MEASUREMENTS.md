@@ -22,7 +22,58 @@ $ node test/run.mjs
 Covers the path rules (52 cases), `apply()` behaviour (15), the read half + tool `execute()`
 against a real temp-room on disk (34).
 
-## 2. The row composes and boots (Windows, isolated `DSH_HOME`)
+## 2. The row composes and boots (isolated `DSH_HOME`)
+
+Re-measured at **1.0.0** on dsh `0.1.6-alpha.2` (WSL), because the 0.1.0 numbers below were
+recorded before the package was renamed and before the row `name` was corrected. The section
+that follows the block records what the old numbers hid.
+
+```bash
+export DSH_HOME="$(mktemp -d)"
+dsh plugin --profile web add "$PWD"                 # + dsh-zcode-scribe link:…
+dsh --profile web --dump-config > tree.txt 2> tree.err
+```
+
+```
+exit=0   stderr=0 bytes   164 rows   duplicate ids: none
+- id: scribe
+  name: dsh-zcode-scribe
+  config: { dir: .dsh/memory, indexLineLimit: 200, indexCharLimit: 25000, … all keys preserved }
+```
+
+**The dump carries no resolution marker on this line.** `__dshPluginOwner` and `packageDir`
+were present at 0.1.0 on dsh `0.1.5-rc.2`; on `0.1.6-alpha.2` neither appears whether or not
+the row name resolves, and the dump is `exit 0` with a 0-byte stderr in both cases. Measured
+both ways against the same checkout with one word changed in `cordis.patch.yml`:
+
+```
+row name correct  → exit=0  stderr=0 bytes  __dshPluginOwner occurrences: 0
+row name stale    → exit=0  stderr=0 bytes  __dshPluginOwner occurrences: 0
+```
+
+So `--dump-config` cannot be used to assert that a row resolves. `tools/verify-boot.mjs`
+asserts it from the dump's *text* (the row's `name` must equal the package name) and then
+proves it by booting.
+
+```bash
+node tools/verify-boot.mjs --port 31859
+```
+```
+verify-boot: A. install: exit 0
+verify-boot: B. row name: scribe → dsh-zcode-scribe (matches the package)
+verify-boot: C. boot exit      : still serving when this guard stopped it
+verify-boot: C. stderr bytes   : 0 at the moment the URL appeared · 0 including teardown
+verify-boot: C. listening url  : http://127.0.0.1:31859/?token=…
+verify-boot: PASS — installs (A) · row name matches the package (B) · boots with empty stderr (C)
+```
+
+And the same command against a copy with the row `name` reverted to `dsh-scribe`:
+
+```
+verify-boot: FAIL — row `scribe` declares name "dsh-scribe" but the package is "dsh-zcode-scribe".
+```
+
+### The 0.1.0 measurement, kept because it is what made the defect invisible
 
 ```bash
 export DSH_HOME=".../.workbuddy/sandboxes/05/dsh-home"
@@ -38,6 +89,10 @@ exit=0   stderr=0 bytes   153 rows   duplicate ids: none
   __dshPluginOwner: { packageName: dsh-scribe, version: 0.1.0, packageDir: …sandboxes/05/dsh-home/profiles/web/node_modules/dsh-scribe }
 ```
 
+That block was read as evidence that the row resolved. It only showed the name the row
+*declared* — which was, at the time, also the package name. When the package was renamed and
+this line was not, the same clean dump came out for a profile that could not start.
+
 ```bash
 timeout 40 "$NODE" "$BIN" --profile web --port 31850 --no-open
 ```
@@ -45,6 +100,11 @@ timeout 40 "$NODE" "$BIN" --profile web --port 31850 --no-open
 dsh web: http://127.0.0.1:31850/?token=PUdD-…
 stderr: 0 bytes
 ```
+
+Note that the harness is the **npm** install, not a developer's Electron bundle: the bundled
+build is managed by its host application and never prints a listening URL, so a boot guard
+pointed at one reports a failure that is not the plugin's. `tools/verify-boot.mjs` skips a
+`node_modules/@deepseek-ai/dsh` that resolves outside the repository for exactly this reason.
 
 **`--dump-config` alone was not enough, twice.** The first real boot of this plugin failed
 with `Cannot find package '@deepseek-ai/schemastery'` while the tree above was clean. Cause
