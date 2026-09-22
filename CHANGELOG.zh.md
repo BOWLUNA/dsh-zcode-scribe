@@ -29,9 +29,20 @@
   **从 profile 目录**去解析的 —— 于是 profile 直接死在 `Cannot find package 'dsh-scribe'`。
   它能装上、单测全过、`--dump-config` 干净且 stderr 为空；但这几项**都不 apply 插件**，
   所以 CI 一直是绿的。现在行名与 `package.json` 一致。
-- `tools/verify-boot.mjs`：一道把插件真装进一次性 `DSH_HOME` 并真启动的守卫，要求打出监听 URL
-  且 stderr 为空。它同时直接断言「行名 = 包名」这条不变量 —— 因为在这条 harness 线上，
-  `--dump-config` 根本没有任何解析状态的痕迹可查。两道工作流里都会跑。
+- `tools/boot-check.mjs`：把插件真装进一次性 `DSH_HOME` 并真启动的守卫，四条断言 ——
+  安装 exit 0；`cordis.patch.yml` 的行 `name` 等于 `package.json` 的 `name`
+  （**直接读文件**，因为 `--dump-config` 没有任何解析状态的痕迹可查）；
+  在超时内 `net.connect` 到端口成功（**探端口，不探日志** —— Electron 那份构建从不打印监听 URL）；
+  以及端口应答那一刻 stderr 为空。**exit 1 会点名是哪条断言失败，exit 2 表示环境跑不了这条检查**。
+  两道工作流里都会跑。
+- **harness 是被「找到」的，不是被假定的。** `tools/boot-check.mjs` 与 `tools/resolve-dsh.sh`
+  按同一个顺序解析它 —— `--dsh-bin` → `$DSH_INSTALL` → 本地 `node_modules` 安装 → PATH 上的 `dsh`；
+  `install.sh` / `uninstall.sh` **共用同一个 resolver**，而不是各自写死一个路径。
+  写死的那个正是 2026-09-21 失效的东西：桌面 harness 从 `C:\BL\AI\DSH Desktop`
+  搬到了 `C:/BL/AI/dsh-harness` —— 而 `install.sh` 的救援提示（用户装不上时**唯一**看到的指引）
+  指向两个已不存在的目录，`AGENTS.md` 也在让人遵守一条指向已消失路径的规则。
+- `.gitignore` 补了一条**不带斜杠**的 `node_modules`。带斜杠只匹配目录，
+  所以同名的符号链接 / junction 并不会被忽略。
 - `test/run.mjs` 钉死 `--test-reporter=tap`。Node 24 把「stdout 非终端」时的默认 reporter
   从 `tap` 改成了 `spec`，导致 `tools/verify-doc-numbers.mjs` 在 Node 24 上读不到 live 摘要，
   而在 Node 22 上仍然正常。

@@ -22,7 +22,7 @@ does not need Administrator, whereas a symbolic link does.
 ```bat
 :: Windows, elevated-free. Substitute your own repository path.
 mkdir "<repo>\node_modules"
-mklink /J "<repo>\node_modules\@deepseek-ai" "C:\BL\AI\DSH Desktop\resources\app\node_modules\@deepseek-ai"
+mklink /J "<repo>\node_modules\@deepseek-ai" "C:\BL\AI\dsh-harness\node_modules\@deepseek-ai"
 ```
 
 `node_modules/` is git-ignored, so this is a per-checkout step; users installing
@@ -63,12 +63,12 @@ Two measurements from diagnosing it, both worth keeping:
 - **A rename has four places, not three.** `package.json` `name`, the repository
   name, `cordis.patch.yml`'s row `name`, and the local directory name. Missing the
   third produces a plugin that installs, passes every unit test and passes
-  `--dump-config`, and then takes the profile down. `tools/verify-boot.mjs` asserts
+  `--dump-config`, and then takes the profile down. `tools/boot-check.mjs` asserts
   it (assertion B) and boots the result (assertion C).
 
 ## A guard that passes while testing nothing
 
-`tools/verify-boot.mjs` was written to catch the rename defect above, and its first
+`tools/boot-check.mjs` was written to catch the rename defect above, and its first
 draft was worthless. The boot step spawned the harness without passing `env`, so
 `DSH_HOME` was never set and the boot silently used the developer's own `~/.dsh` —
 a profile that starts perfectly well. The guard printed PASS no matter what the
@@ -91,6 +91,35 @@ non-TTY stdout from `tap` to `spec`, which turns `# pass 101` into `ℹ pass 101
 leaves `tools/verify-doc-numbers.mjs` unable to read the live summary on one machine
 and fine on another. Pin the format where it is produced; do not parse whatever the
 environment happens to emit.
+
+## The port answers before the tree is applied
+
+Found while building `tools/boot-check.mjs`, and it invalidates the obvious version of
+assertion C. With the row `name` correct and a module-level `throw` in `index.js`, the
+harness **still accepted a TCP connection** on its port and only then exited with code 1:
+
+```
+boot-check: C. 127.0.0.1:31859 answered · exited early (code 1)
+boot-check: D. stderr bytes: 0 at the moment the port answered · 7543 including teardown
+boot-check: FAIL [C] the harness exited (code 1) right after answering — it never served.
+```
+
+The server starts listening before the plugin tree is applied, so "the port answers" on its
+own has a hole shaped exactly like the defect this guard exists to catch. Two consequences:
+
+- **Never assert C by connecting alone.** Hold the process alive for a beat after the first
+  answer and fail if it died. That is what caught this case.
+- **Assertion D is necessarily racy, and that is why C carries the weight.** The tree error
+  had not been written when the port answered, so `stderr` was empty at that instant even
+  though the boot was doomed. D still earns its place — it is what catches a plugin that
+  boots and serves while complaining — but do not treat a clean D as proof that C is
+  unnecessary.
+
+The same measurement also settled a harness question: the **Electron** build in a
+developer's `node_modules` never prints a listening URL, and driven from WSL it does not
+bind the port at all (`exit=124`, both streams 0 bytes, nothing listening after 25 s) while
+from Windows it does. That is why the check probes the port rather than a log line, and why
+`$DSH_INSTALL` / an npm install is the better boot target.
 
 ## `required must be true when present`
 

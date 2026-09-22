@@ -33,10 +33,23 @@ of work rather than five independent projects.
   with `Cannot find package 'dsh-scribe'`. It installed, passed every unit test, and produced a
   clean `--dump-config` with an empty stderr; none of those applies the plugin, which is why
   CI was green. The row `name` now matches `package.json`.
-- `tools/verify-boot.mjs`: a guard that installs the plugin into a throwaway `DSH_HOME` and
-  boots it, requiring a listening URL and an empty stderr. It also checks the row
-  `name`/package-name invariant directly, because `--dump-config` carries no resolution marker
-  on this harness line to check instead. Runs in both workflows.
+- `tools/boot-check.mjs`: the guard that installs the plugin into a throwaway `DSH_HOME` and
+  boots it, with four assertions — install exits 0; the row `name` in `cordis.patch.yml`
+  equals `package.json`'s `name` (read from the files, because `--dump-config` carries no
+  resolution marker to check); a TCP connection to the port succeeds within the timeout (the
+  port, not a log line — the Electron-managed build never prints a listening URL); and
+  stderr is empty at the moment the port answers. Exit 1 names the assertion that failed,
+  exit 2 means the environment cannot run the check at all. Runs in both workflows.
+- **The harness is found, not assumed.** `tools/boot-check.mjs` and `tools/resolve-dsh.sh`
+  resolve it in one order — `--dsh-bin`, then `$DSH_INSTALL`, then a local `node_modules`
+  install, then `dsh` on PATH — and `install.sh` / `uninstall.sh` share the resolver instead
+  of each carrying a literal. The literal is what went stale on 2026-09-21, when the desktop
+  harness moved from `C:\BL\AI\DSH Desktop` to `C:/BL/AI/dsh-harness`: `install.sh`'s rescue
+  message — the only thing a user sees when an install fails — was pointing at two
+  directories that no longer existed, and `AGENTS.md` told readers not to install into a path
+  that was gone.
+- `.gitignore` also lists `node_modules` without a trailing slash. The trailing slash matches
+  directories only, so a symlink or junction of that name was not ignored.
 - `test/run.mjs` pins `--test-reporter=tap`. Node 24 changed the default reporter for a non-TTY
   stdout from `tap` to `spec`, which stopped `tools/verify-doc-numbers.mjs` reading the live
   summary on Node 24 while it kept working on Node 22.

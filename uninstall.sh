@@ -12,17 +12,18 @@ set -eu
 
 PROFILE="${DSH_PROFILE:-web}"
 
-if ! command -v dsh >/dev/null 2>&1; then
-  echo "dsh is not on PATH — see docs/TROUBLESHOOTING.md for how to reach it on DSH Desktop." >&2
-  exit 1
-fi
+# Same resolver as install.sh, for the same reason: the fallback path in this
+# script used to name `%APPDATA%\dsh-desktop\harness`, which stopped existing on
+# 2026-09-21. See tools/resolve-dsh.sh.
+. "$(cd "$(dirname "$0")" && pwd)/tools/resolve-dsh.sh"
+resolve_dsh
 
 echo "removing dsh-zcode-scribe from profile '$PROFILE'"
-dsh plugin --profile "$PROFILE" remove dsh-zcode-scribe
+run_dsh plugin --profile "$PROFILE" remove dsh-zcode-scribe
 
 echo
 echo "remaining scribe rows (expect none):"
-if dsh --profile "$PROFILE" --dump-config | grep -q '^- id: scribe'; then
+if run_dsh --profile "$PROFILE" --dump-config | grep -q '^- id: scribe'; then
   echo "  still present — the row is declared somewhere other than the dependency (check cordis.patch.yml)" >&2
   exit 1
 fi

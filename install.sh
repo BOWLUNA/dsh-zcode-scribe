@@ -20,30 +20,23 @@ if [ -z "$SPEC" ]; then
   SPEC="$(cd "$(dirname "$0")" && pwd)"
 fi
 
-if ! command -v dsh >/dev/null 2>&1; then
-  cat >&2 <<'MSG'
-dsh is not on PATH. On DSH Desktop the CLI exists but is not exposed globally;
-call it through the app's bundled Node instead:
-
-  DSH_HOME="$APPDATA/dsh-desktop/harness" \
-  "$APPDATA/../Local/Programs/DSH Desktop/resources/app/node_modules/node/bin/node.exe" \
-  "$APPDATA/dsh-desktop/../DSH Desktop/resources/app/node_modules/@deepseek-ai/dsh/lib/bin.js" \
-  plugin --profile web add <spec>
-
-Exact paths differ per installation; see docs/TROUBLESHOOTING.md.
-MSG
-  exit 1
-fi
+# Where does `dsh` come from? See tools/resolve-dsh.sh — one resolver, shared with
+# uninstall.sh, resolving in the order PATH → $DSH_INSTALL → a literal. The literal
+# is a convenience, not a promise: a second hardcoded copy is what went stale on
+# 2026-09-21 when the desktop harness moved.
+. "$(cd "$(dirname "$0")" && pwd)/tools/resolve-dsh.sh"
+resolve_dsh
 
 echo "installing $SPEC into profile '$PROFILE'"
-dsh plugin --profile "$PROFILE" add "$SPEC"
+run_dsh plugin --profile "$PROFILE" add "$SPEC"
 
 # Confirming the row is present is not the same as confirming the profile boots.
 # A row can resolve in --dump-config and still fail at apply() time, so the
-# message says what was actually checked rather than implying more.
+# message says what was actually checked rather than implying more. For the
+# check that does apply the plugin, run `node tools/boot-check.mjs`.
 echo
 echo "row check (this proves the row composes, not that the profile boots):"
-dsh --profile "$PROFILE" --dump-config | grep -A3 '^- id: scribe' || {
+run_dsh --profile "$PROFILE" --dump-config | grep -A3 '^- id: scribe' || {
   echo "the scribe row is missing from the composed tree — inspect the output above" >&2
   exit 1
 }

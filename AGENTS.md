@@ -29,8 +29,8 @@ Against a **throwaway** harness — never the DSH_HOME you are actually using:
 
 ```sh
 export DSH_HOME=/tmp/dsh-scribe-dev
-NODE="C:/BL/AI/DSH Desktop/resources/app/node_modules/node/bin/node.exe"
-DSHBIN="C:/BL/AI/DSH Desktop/resources/app/node_modules/@deepseek-ai/dsh/lib/bin.js"
+NODE="C:/BL/AI/dsh-harness/node_modules/node/bin/node.exe"
+DSHBIN="C:/BL/AI/dsh-harness/node_modules/@deepseek-ai/dsh/lib/bin.js"
 
 "$NODE" "$DSHBIN" --profile web --from-default-profile web   # first use creates the profile
 "$NODE" "$DSHBIN" plugin --profile web add "$PWD"            # install this checkout
@@ -71,7 +71,7 @@ The repository therefore needs its own view of the host packages:
 $parent = '<repo>\node_modules'
 $link   = Join-Path $parent '@deepseek-ai'
 New-Item -ItemType Directory -Path $parent -Force | Out-Null
-New-Item -ItemType Junction -Path $link -Target 'C:\BL\AI\DSH Desktop\resources\app\node_modules\@deepseek-ai'
+New-Item -ItemType Junction -Path $link -Target 'C:\BL\AI\dsh-harness\node_modules\@deepseek-ai'
 ```
 
 `node_modules/` is git-ignored, so this is a per-checkout setup step, not something a user of
@@ -106,7 +106,7 @@ Ordered by how expensive the failure is.
    resolved from the *profile* directory while the tree is applied, so a stale value
    produces a plugin that installs, passes every unit test and passes `--dump-config`,
    then fails to boot. That is what 1.0.0 shipped (`cordis.patch.yml` kept `dsh-scribe`
-   after the package became `dsh-zcode-scribe`). `tools/verify-boot.mjs` asserts it.
+   after the package became `dsh-zcode-scribe`). `tools/boot-check.mjs` asserts it.
    A rename touches four places: `package.json` `name`, the repository name, this row's
    `name`, and the local directory name.
 6. **`src/**` stays host-free.** No `@deepseek-ai/*` import and no `node:fs` under `src/`.
@@ -122,7 +122,7 @@ Ordered by how expensive the failure is.
 9. **"Installed" means a real `--port` boot with empty stderr, not a clean `--dump-config`.**
    See the two traps above. Every claim in `README.md` about what works must be traceable to
    either a `node test/run.mjs` assertion or a recorded boot, and the boot's raw output
-   belongs in `docs/MEASUREMENTS.md`. `tools/verify-boot.mjs` is that boot, in CI.
+   belongs in `docs/MEASUREMENTS.md`. `tools/boot-check.mjs` is that boot, in CI.
 10. **`test/run.mjs` pins `--test-reporter=tap`.** Node 24 changed the default reporter for
     a non-TTY stdout from `tap` to `spec`, which changes `# pass 101` into `ℹ pass 101` and
     leaves `tools/verify-doc-numbers.mjs` unable to read the live summary on one machine and
@@ -162,7 +162,7 @@ Modelled on [`BOWLUNA/dsh-custom-mode`](https://github.com/BOWLUNA/dsh-custom-mo
   gap, not an assumption: adding a document means deciding which list it belongs in.
 - **Invariants over instructions.** A rule that matters gets a test, not a paragraph. This
   file's "what must not break" list is the *index* into those tests, and
-  `tools/verify-boot.mjs` is the one that applies the plugin to a real harness.
+  `tools/boot-check.mjs` is the one that applies the plugin to a real harness.
 - **A guard is not finished until a mutation has made it fail.** See
   `docs/TROUBLESHOOTING.md` § "A guard that passes while testing nothing" — this repository
   shipped one that did exactly that.
@@ -176,9 +176,25 @@ outside this directory.** The parts that most often matter here:
 
 - **This repository is ours alone.** `05-dsh-scribe/**` belongs to the `05` window. Do not
   write into other windows' directories, and do not let another window write here.
-- **Never install into the shared `%APPDATA%\dsh-desktop\harness\profiles\web`.** Other
-  windows are using it; concurrent pnpm runs there have already emptied `node_modules`
-  once. Use a throwaway `DSH_HOME` instead.
+- **Never install into the shared profile.** The desktop harness's `DSH_HOME` is
+  `C:/BL/AI/dsh-harness/harness` and every window on this machine shares it; concurrent pnpm
+  runs there have already emptied `node_modules` once. Use a throwaway `DSH_HOME` instead —
+  `tools/boot-check.mjs` makes one for you.
+  (This rule used to name `%APPDATA%\dsh-desktop\harness\profiles\web`. That whole tree was
+  deleted on 2026-09-21 when the harness moved; see the migration note below.)
+- **The harness moved on 2026-09-21, and hardcoded paths are how it bit us.** The install root
+  is now `C:/BL/AI/dsh-harness`; the old `C:\BL\AI\DSH Desktop` and `%APPDATA%\dsh-desktop`
+  are gone. Do not add another literal — resolve the harness in this order, first hit wins:
+
+  | # | Where | Who relies on it |
+  | --- | --- | --- |
+  | 1 | `--dsh-bin <path>` | explicit, highest priority |
+  | 2 | `$DSH_INSTALL` | the supported way to point at a harness somewhere unexpected |
+  | 3 | `<repo>/node_modules/@deepseek-ai/dsh` | CI's `npm install --no-save` |
+  | 4 | `dsh` on PATH | a machine-level install |
+
+  None of the four ⇒ exit 2 with the exports to copy, never a silent skip. `tools/boot-check.mjs`
+  implements exactly this and is the reference for it.
 - **Ports** for this project: **31850–31859**. `3080` and `3099` are held by long-running
   WSL DSH instances and are never ours to bind. `--port 0` sidesteps the whole question.
 - **Shared files are append-only**: `.workbuddy/memory/MEMORY.md`, `.workbuddy/memory/*.md`,

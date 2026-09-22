@@ -1,4 +1,5 @@
 node_modules/
+node_modules   # no slash: also ignores a symlink or junction named node_modules
 *.log
 .DS_Store
 .idea/

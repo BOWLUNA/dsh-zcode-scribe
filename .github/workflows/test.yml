@@ -49,14 +49,20 @@ jobs:
         run: node tools/verify-doc-numbers.mjs
       - name: Guard 4 - shell syntax
         shell: bash
-        run: bash -n install.sh && bash -n uninstall.sh
+        run: bash -n install.sh && bash -n uninstall.sh && bash -n tools/resolve-dsh.sh
       - name: Guard 5 - version consistency against the matrix entry
         run: node tools/verify-version-consistency.mjs --dsh ${{ matrix.dsh }}
-      # The only guard that applies the plugin to a real harness. Every other
-      # step here reads pure logic or composed configuration, and on 2026-09-21
-      # that gap shipped a 1.0.0 which passed all of them and then failed to
-      # boot: `cordis.patch.yml` still named the pre-rename package, and the
-      # loader resolves that name while applying the tree. `--dump-config` was
-      # `exit 0` with an empty stderr at the same moment. See tools/verify-boot.mjs.
-      - name: Guard 6 - boot check (the plugin installs and actually starts)
-        run: node tools/verify-boot.mjs --port 31859
+      # The only guard that applies the plugin to a real harness. Every other step
+      # here reads pure logic or composed configuration, and on 2026-09-21 that gap
+      # shipped a 1.0.0 which passed all of them and then failed to boot:
+      # `cordis.patch.yml` still named the pre-rename package, and the loader
+      # resolves that name while applying the tree. `--dump-config` was `exit 0`
+      # with an empty stderr at the same moment. See tools/boot-check.mjs.
+      #
+      # It probes a TCP connection rather than a log line, and it does NOT assume
+      # `dsh` is on PATH — this leg installs the harness locally and the check
+      # finds it there. If a node-20 leg is ever added to the matrix, this step
+      # must be skipped on it with an explicit `::warning::`: node 20 cannot
+      # install the harness, and a silently skipped guard is no guard at all.
+      - name: Guard 6 - boot check (the plugin installs and actually serves)
+        run: node tools/boot-check.mjs --port 31859

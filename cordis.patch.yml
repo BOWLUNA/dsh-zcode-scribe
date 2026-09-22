@@ -8,7 +8,7 @@
 # with an empty stderr, passes every unit test — and then takes the profile down
 # at boot with `ERR_MODULE_NOT_FOUND`. That is exactly what happened here: the
 # package was renamed from `dsh-scribe` to `dsh-zcode-scribe` and this line was
-# missed. `tools/verify-boot.mjs` now exists because of it.
+# missed. `tools/boot-check.mjs` now exists because of it.
 #
 # Row ids are global across every composed patch layer, so a collision here is a
 # hard boot failure rather than a silent override — before adding a row, grep the

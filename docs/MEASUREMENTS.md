@@ -51,26 +51,44 @@ row name correct  → exit=0  stderr=0 bytes  __dshPluginOwner occurrences: 0
 row name stale    → exit=0  stderr=0 bytes  __dshPluginOwner occurrences: 0
 ```
 
-So `--dump-config` cannot be used to assert that a row resolves. `tools/verify-boot.mjs`
-asserts it from the dump's *text* (the row's `name` must equal the package name) and then
-proves it by booting.
+So `--dump-config` cannot be used to assert that a row resolves. `tools/boot-check.mjs` reads
+`cordis.patch.yml` and `package.json` **directly** for that invariant (assertion B) and then
+proves the whole thing by booting (assertions C and D).
 
 ```bash
-node tools/verify-boot.mjs --port 31859
+node tools/boot-check.mjs --port 31859
 ```
 ```
-verify-boot: A. install: exit 0
-verify-boot: B. row name: scribe → dsh-zcode-scribe (matches the package)
-verify-boot: C. boot exit      : still serving when this guard stopped it
-verify-boot: C. stderr bytes   : 0 at the moment the URL appeared · 0 including teardown
-verify-boot: C. listening url  : http://127.0.0.1:31859/?token=…
-verify-boot: PASS — installs (A) · row name matches the package (B) · boots with empty stderr (C)
+boot-check: A. install: exit 0
+boot-check: B. row name: scribe → dsh-zcode-scribe (matches the package)
+boot-check: C. 127.0.0.1:31859 answered · still serving when this check stopped it
+boot-check: D. stderr bytes: 0 at the moment the port answered · 0 including teardown
+boot-check: PASS — installs (A) · row name matches the package (B) · boots and answers on the port (C) · clean stderr (D)
 ```
+
+**Assertion C probes the port, not the log.** The harness prints a listening URL on some
+builds and not others — the Electron-managed build in a developer's `node_modules` never does
+— so an assertion on the printed line reports a failure that is not the plugin's. A listening
+socket is the property that matters.
+
+**But a listening socket is not sufficient either, and this is worth knowing.** Measured while
+building this check: with the row name correct and a module-level throw in `index.js`, the
+port **answered anyway** and the harness exited a moment later with code 1:
+
+```
+boot-check: C. 127.0.0.1:31859 answered · exited early (code 1)
+boot-check: D. stderr bytes: 0 at the moment the port answered · 7543 including teardown
+boot-check: FAIL [C] the harness exited (code 1) right after answering — it never served.
+```
+
+The tree is applied *after* the server starts listening. So "the port answers" on its own is a
+false-negative-shaped hole: the check holds the process alive for a beat afterwards and fails
+if it died, which is what caught this.
 
 And the same command against a copy with the row `name` reverted to `dsh-scribe`:
 
 ```
-verify-boot: FAIL — row `scribe` declares name "dsh-scribe" but the package is "dsh-zcode-scribe".
+boot-check: FAIL [B] row `scribe` declares name "dsh-scribe" but the package is "dsh-zcode-scribe".
 ```
 
 ### The 0.1.0 measurement, kept because it is what made the defect invisible
@@ -101,10 +119,13 @@ dsh web: http://127.0.0.1:31850/?token=PUdD-…
 stderr: 0 bytes
 ```
 
-Note that the harness is the **npm** install, not a developer's Electron bundle: the bundled
-build is managed by its host application and never prints a listening URL, so a boot guard
-pointed at one reports a failure that is not the plugin's. `tools/verify-boot.mjs` skips a
-`node_modules/@deepseek-ai/dsh` that resolves outside the repository for exactly this reason.
+Note that the measurement above was taken against the **npm** install of the harness, not the
+Electron bundle in a developer's `node_modules`. Both work as a boot target now that assertion
+C probes the port rather than the log — but they behave differently, and the difference is
+worth knowing: the bundled build never prints a listening URL, and driven from WSL it does not
+bind the port at all (measured: `exit=124`, 0 bytes on both streams, nothing listening after
+25 s), while from Windows it does. Prefer `$DSH_INSTALL` or a `node_modules` install when you
+want a boot target whose behaviour you can reason about.
 
 **`--dump-config` alone was not enough, twice.** The first real boot of this plugin failed
 with `Cannot find package '@deepseek-ai/schemastery'` while the tree above was clean. Cause
