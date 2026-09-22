@@ -12,7 +12,7 @@ Node `>= 20`. There are no runtime dependencies and no build step.
 ```bash
 git clone https://github.com/BOWLUNA/dsh-zcode-scribe
 cd dsh-zcode-scribe
-node test/run.mjs          # 101 tests, 15 suites, no install required
+node test/run.mjs          # 104 tests, 16 suites, no install required
 ```
 
 The suites import two host packages, `@deepseek-ai/dsh-tools` and

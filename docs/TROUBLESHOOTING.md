@@ -22,7 +22,7 @@ does not need Administrator, whereas a symbolic link does.
 ```bat
 :: Windows, elevated-free. Substitute your own repository path.
 mkdir "<repo>\node_modules"
-mklink /J "<repo>\node_modules\@deepseek-ai" "C:\BL\AI\dsh-harness\node_modules\@deepseek-ai"
+mklink /J "<repo>\node_modules\@deepseek-ai" "%DSH_INSTALL%\node_modules\@deepseek-ai"
 ```
 
 `node_modules/` is git-ignored, so this is a per-checkout step; users installing

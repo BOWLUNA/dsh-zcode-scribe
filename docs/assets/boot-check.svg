@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 380" width="720" height="380" role="img"
+     aria-label="The four assertions a boot check makes, and why configuration-only checks cannot replace them">
+  <title>Why a boot check exists</title>
+
+  <!-- Paper. Warm off-white, no deep blue anywhere. -->
+  <rect width="720" height="380" fill="#faf7f0"/>
+  <rect x="8" y="8" width="704" height="364" fill="none" stroke="#d8cfbc" stroke-width="1.5"/>
+
+  <g font-family="Georgia, 'Songti SC', 'Times New Roman', serif" fill="#3a3630">
+
+    <text x="34" y="46" font-size="19" letter-spacing="0.4">Four assertions, and the one that actually catches it</text>
+    <line x1="34" y1="58" x2="330" y2="58" stroke="#c9bda4" stroke-width="1"/>
+
+    <!-- A -->
+    <g transform="translate(34,84)">
+      <circle cx="15" cy="15" r="15" fill="none" stroke="#7d8a6a" stroke-width="1.8"/>
+      <text x="15" y="21" font-size="15" text-anchor="middle" fill="#7d8a6a">A</text>
+      <text x="42" y="11" font-size="13.5">installs</text>
+      <text x="42" y="28" font-size="12" fill="#6d675d">dsh&#160;plugin&#160;add exits 0</text>
+    </g>
+
+    <!-- B -->
+    <g transform="translate(178,84)">
+      <circle cx="15" cy="15" r="15" fill="none" stroke="#7d8a6a" stroke-width="1.8"/>
+      <text x="15" y="21" font-size="15" text-anchor="middle" fill="#7d8a6a">B</text>
+      <text x="42" y="11" font-size="13.5">row names the package</text>
+      <text x="42" y="28" font-size="12" fill="#6d675d">read from the files, not the dump</text>
+    </g>
+
+    <!-- C -->
+    <g transform="translate(34,148)">
+      <circle cx="15" cy="15" r="15" fill="#b4553f" stroke="#b4553f" stroke-width="1.8"/>
+      <text x="15" y="21" font-size="15" text-anchor="middle" fill="#faf7f0">C</text>
+      <text x="42" y="11" font-size="13.5" font-weight="bold">the port answers</text>
+      <text x="42" y="28" font-size="12" fill="#6d675d">a TCP connection succeeds &#8212; and it is still alive after</text>
+    </g>
+
+    <!-- D -->
+    <g transform="translate(430,148)">
+      <circle cx="15" cy="15" r="15" fill="none" stroke="#7d8a6a" stroke-width="1.8"/>
+      <text x="15" y="21" font-size="15" text-anchor="middle" fill="#7d8a6a">D</text>
+      <text x="42" y="11" font-size="13.5">stderr is clean</text>
+      <text x="42" y="28" font-size="12" fill="#6d675d">at the moment the port answered</text>
+    </g>
+
+    <!-- The trap, drawn as a torn note -->
+    <g transform="translate(34,206)">
+      <path d="M0 0 H652 V104 H0 Z" fill="#f3ecdd" stroke="#d8cfbc" stroke-width="1"/>
+      <text x="18" y="26" font-size="13.5" font-weight="bold" fill="#b4553f">The hole we found:</text>
+      <text x="152" y="26" font-size="13">the server starts listening</text>
+      <text x="308" y="26" font-size="13" font-style="italic">before</text>
+      <text x="352" y="26" font-size="13">the plugin tree is applied.</text>
+      <text x="18" y="52" font-size="12.5" fill="#6d675d">Row name correct, module throws &#8212; the port still answered, and the harness exited a moment later:</text>
+      <text x="18" y="76" font-size="12" font-family="Consolas, 'Courier New', monospace" fill="#3a3630">C. 127.0.0.1:31859 answered &#183; exited early (code 1)</text>
+      <text x="18" y="94" font-size="12" fill="#6d675d">So C holds the process alive for a beat and fails if it died. Connecting once and declaring victory passes that case.</text>
+    </g>
+
+    <!-- What the cheap checks cannot see -->
+    <g transform="translate(34,332)">
+      <path d="M0 12 Q10 0 20 12 T40 12 T60 12 T80 12 T100 12 T120 12" fill="none" stroke="#c9bda4" stroke-width="1.4"/>
+      <text x="132" y="16" font-size="12.5" fill="#6d675d">
+        Every cheaper check reads configuration. On 2026-09-21 that shipped a release which passed all of them and
+      </text>
+      <text x="132" y="32" font-size="12.5" fill="#6d675d">could not boot. Only a real boot asks the question.</text>
+    </g>
+  </g>
+</svg>

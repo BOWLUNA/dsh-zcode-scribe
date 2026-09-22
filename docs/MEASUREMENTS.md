@@ -13,14 +13,14 @@
 
 ```
 $ node test/run.mjs
-# tests 101
-# suites 15
-# pass 101
+# tests 104
+# suites 16
+# pass 104
 # fail 0
 ```
 
 Covers the path rules (52 cases), `apply()` behaviour (15), the read half + tool `execute()`
-against a real temp-room on disk (34).
+against a real temp-room on disk (34), and the harness-path invariants (3).
 
 ## 2. The row composes and boots (isolated `DSH_HOME`)
 

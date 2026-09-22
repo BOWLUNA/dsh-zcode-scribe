@@ -5,7 +5,7 @@ English | [中文](README.zh.md)
 node test/run.mjs
 ```
 
-**101 tests across 15 suites**, with no installation and no harness required. The
+**104 tests across 16 suites**, with no installation and no harness required. The
 runner discovers every `*.test.mjs` here, resolves them to absolute paths, and hands
 them to `node --test`. It does that rather than letting Node discover a directory,
 because a bare `test` argument resolves as an extension-less module path on Windows and

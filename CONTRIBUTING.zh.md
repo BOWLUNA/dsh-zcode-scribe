@@ -11,7 +11,7 @@ Node `>= 20`。**没有运行时依赖，也没有构建步骤。**
 ```bash
 git clone https://github.com/BOWLUNA/dsh-zcode-scribe
 cd dsh-zcode-scribe
-node test/run.mjs          # 101 项测试 / 15 个套件，无需安装
+node test/run.mjs          # 104 项测试 / 16 个套件，无需安装
 ```
 
 测试套件会 import 两个宿主包：`@deepseek-ai/dsh-tools` 与 `@deepseek-ai/schemastery`。

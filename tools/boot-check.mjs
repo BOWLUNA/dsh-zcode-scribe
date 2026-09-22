@@ -60,7 +60,7 @@
  *   5. none of the above ⇒ exit 2, with the exports to copy
  *
  * `DSH_INSTALL` is the harness **install root** (the directory containing
- * `node_modules/@deepseek-ai/…`), e.g. `C:/BL/AI/dsh-harness`; passing the
+ * `node_modules/@deepseek-ai/…`); passing the
  * package directory or a `bin.js` works too. There is deliberately **no probe
  * for `%APPDATA%\dsh-desktop`** — that path was deleted on 2026-09-21 and
  * probing it only wastes a stat.
@@ -235,7 +235,7 @@ if (HARNESS === null) {
   refuse(
     'no harness found. Set one of these up, then re-run:\n' +
       '  # a) point at an existing harness install (the supported way)\n' +
-      '  export DSH_INSTALL="C:/BL/AI/dsh-harness"\n' +
+      '  export DSH_INSTALL="<dir containing node_modules/@deepseek-ai/dsh>"\n' +
       '  # b) or install a harness next to this checkout, the way CI does\n' +
       '  npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.6-alpha.2\n' +
       '  # c) or pass --dsh-bin <path-to-@deepseek-ai/dsh/lib/bin.js>',

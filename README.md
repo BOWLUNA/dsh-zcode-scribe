@@ -1,12 +1,24 @@
 # dsh-zcode-scribe
+
+[![test](https://github.com/BOWLUNA/dsh-zcode-scribe/actions/workflows/test.yml/badge.svg)](https://github.com/BOWLUNA/dsh-zcode-scribe/actions/workflows/test.yml)
+[![license](https://img.shields.io/badge/license-MIT-7d8a6a.svg)](LICENSE)
+[![dsh](https://img.shields.io/badge/dsh-%3E%3D0.1.5--rc.2%20%7C%7C%20%3E%3D0.1.6--alpha.1-7d8a6a.svg)](#compatibility)
+[![node](https://img.shields.io/badge/node-%3E%3D20-7d8a6a.svg)](#compatibility)
+
 `v1.0.0` · developed and verified against dsh `>=0.1.5-rc.2 <0.2.0 || >=0.1.6-alpha.1 <0.2.0`.
 
 **Long-term memory for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) whose writer is a narrowed subagent.**
 
+```bash
+dsh plugin --profile web add dsh-zcode-scribe
+```
+
+![The four assertions a boot check makes, and the one that actually catches a broken plugin](docs/assets/boot-check.svg)
+
 > **Status: early, and read-only.** The `scribe_recall` tool is registered, executes for real
 > inside a live host, and a real model session on dsh `0.1.6-alpha.2` used it to answer from a
 > memory room — [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) carries the raw output behind
-> every claim below. 101 tests pass. What does **not** exist yet: writes, extraction, and the
+> every claim below. 104 tests pass. What does **not** exist yet: writes, extraction, and the
 > narrowed writer, which is gated on milestone **M0** — proving a subagent's capability set can
 > actually be narrowed through a public seam. Nothing is injected into the prompt yet, so
 > installing this changes what the model can *ask for*, not what it knows.
@@ -14,6 +26,36 @@
 [简体中文](README.zh.md)
 
 ---
+
+## What it takes from ZCode, and where it goes further
+
+[ZCode](https://github.com/zai-org/ZCode) (`zai-org/ZCode`, together with
+[`zai-org/GLM-skills`](https://github.com/zai-org/GLM-skills)) is where this project's memory
+model comes from: an extraction subagent, a manifest of one-line topic descriptions, and a
+memory room of plain markdown. That lineage is a credit, not a dependency — nothing here needs
+a ZCode install, a GLM key, or any vendor credential; model capability goes through the host's
+own `ctx.llm`.
+
+| What ZCode has | What this takes from it | Where this goes further | Evidence |
+| --- | --- | --- | --- |
+| `core/src/memory/extraction.ts:42` `buildMemoryExtractionPrompt` | The extraction-subagent prompt: analyse the last N messages, prefer updating an existing file over creating a duplicate, output `Nothing to save.` when there is nothing | The prompt is built by this plugin rather than borrowed wholesale, and it names memory *types* and a frontmatter format the room itself defines | not written yet — the extraction half is gated on M0, see below |
+| `extraction.ts:68` `evaluateMemoryExtraction` — skip on `direct-memory-write` | The skip-condition idea: if the agent already wrote to the room this turn, do not extract on top of it | The containment test it needs is this plugin's own `src/paths.mjs` — a pure function with 52 table cases, not a helper that has to trust its inputs | `test/paths.test.mjs` |
+| `extraction.ts:78` — skip on `no-user-prose`, with `MINIMUM_USER_WORDS = 3` (`extraction.ts:6`) | The threshold, and that it counts *user* prose rather than any message | The same number is a config key (`minUserWords`), so it is tunable per profile instead of a module constant | `cordis.patch.yml` `minUserWords: 3` |
+| `extraction.ts:228` `containsDirectMemoryWrite` | Deciding "was this a memory write" by resolving the tool's path against the room | No ZCode counterpart: `checkMemoryPath()` refuses traversal, Unicode smuggling and NTFS alternate data streams **before** the comparison, and it is the only gate on the write path | `test/paths.test.mjs`, 52 cases |
+| `core/src/subagent/profile.ts:78` — subagent `tools:` allowlists | Narrowing a subagent by naming the tools it may use | **ZCode keeps the parent's full tool catalogue in the extraction subagent's provider request and narrows only at the tool-use boundary** — its own note says so at `core/src/memory/memory-agent-loop.ts:70`. The design here removes the tools from the scope the model sees (`ctx.tools.restrict`), so there is nothing to call, rather than a call to refuse | M0 probe — **not yet proven, see below** |
+| `tool/executor/memory-file-permission.ts:22` — grants `Write`/`Edit` on memory `.md` | The notion of a permission rule scoped to the memory directory | That rule *allows*; this plugin's writer is designed to have no other capability to allow | `cordis.patch.yml` `narrowWriter: true` |
+
+**Where this does not (yet) beat ZCode:** ZCode has a working extraction path today and this
+does not. This ships the read half and refuses to extract until M0 clears. That is the honest
+state, and it is why the table has a "not yet proven" row rather than a claim — a table with no
+such row would be marketing.
+
+### The M0 gate, stated as a testable question
+
+**Can a subagent's capability set be narrowed through a public DSH seam?** If yes, extraction
+ships on top of it. If no, extraction does **not** ship — the fallback is not "let the main
+agent write memory with its full toolset". [`issues/M0-1`](issues/) carries what has been
+executed so far and what failed, with raw output.
 
 ## The problem this is actually solving
 

@@ -130,7 +130,7 @@ sentence of the README.
 ## 3. Architecture
 
 Every seam named here was read out of the installed packages
-(`C:\BL\AI\dsh-harness\node_modules\@deepseek-ai\*`, dsh 0.1.5-rc.2), not
+(`<harness>/node_modules/@deepseek-ai/*`, dsh 0.1.5-rc.2), not
 inferred. Line references are to those builds.
 
 ### 3.1 Seams actually used

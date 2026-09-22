@@ -44,10 +44,10 @@ of work rather than five independent projects.
   resolve it in one order — `--dsh-bin`, then `$DSH_INSTALL`, then a local `node_modules`
   install, then `dsh` on PATH — and `install.sh` / `uninstall.sh` share the resolver instead
   of each carrying a literal. The literal is what went stale on 2026-09-21, when the desktop
-  harness moved from `C:\BL\AI\DSH Desktop` to `C:/BL/AI/dsh-harness`: `install.sh`'s rescue
-  message — the only thing a user sees when an install fails — was pointing at two
-  directories that no longer existed, and `AGENTS.md` told readers not to install into a path
-  that was gone.
+  harness was relocated and the previous install root plus its data directory were deleted:
+  `install.sh`'s rescue message — the only thing a user sees when an install fails — was
+  pointing at two directories that no longer existed, and `AGENTS.md` told readers not to
+  install into a path that was gone. Neither file carries a machine path today.
 - `.gitignore` also lists `node_modules` without a trailing slash. The trailing slash matches
   directories only, so a symlink or junction of that name was not ignored.
 - `test/run.mjs` pins `--test-reporter=tap`. Node 24 changed the default reporter for a non-TTY

@@ -25,17 +25,20 @@ node test/run.mjs                     # every *.test.mjs, absolute paths, node:t
 node test/run.mjs --help              # (there is no --help; run.mjs forwards nothing)
 ```
 
-Against a **throwaway** harness — never the DSH_HOME you are actually using:
+Against a **throwaway** `DSH_HOME` — never the one you are actually using. Point
+`DSH_INSTALL` at whichever harness you are testing against; nothing here assumes a
+particular install location:
 
 ```sh
+export DSH_INSTALL="<dir containing node_modules/@deepseek-ai/dsh>"
 export DSH_HOME=/tmp/dsh-scribe-dev
-NODE="C:/BL/AI/dsh-harness/node_modules/node/bin/node.exe"
-DSHBIN="C:/BL/AI/dsh-harness/node_modules/@deepseek-ai/dsh/lib/bin.js"
+N="$DSH_INSTALL/node_modules/node/bin/node.exe"          # or wherever your node is
+DSHBIN="$DSH_INSTALL/node_modules/@deepseek-ai/dsh/lib/bin.js"
 
-"$NODE" "$DSHBIN" --profile web --from-default-profile web   # first use creates the profile
-"$NODE" "$DSHBIN" plugin --profile web add "$PWD"            # install this checkout
-"$NODE" "$DSHBIN" --profile web --dump-config | grep -A4 'id: scribe'
-"$NODE" "$DSHBIN" --profile web --port 0 --no-open           # boot; --port 0 avoids collisions
+"$N" "$DSHBIN" --profile web --from-default-profile web   # first use creates the profile
+"$N" "$DSHBIN" plugin --profile web add "$PWD"            # install this checkout
+"$N" "$DSHBIN" --profile web --dump-config | grep -A4 'id: scribe'
+"$N" "$DSHBIN" --profile web --port 0 --no-open           # boot; --port 0 avoids collisions
 ```
 
 `--port 0` matters: the default 3080 is frequently already held by another DSH instance,
@@ -71,7 +74,7 @@ The repository therefore needs its own view of the host packages:
 $parent = '<repo>\node_modules'
 $link   = Join-Path $parent '@deepseek-ai'
 New-Item -ItemType Directory -Path $parent -Force | Out-Null
-New-Item -ItemType Junction -Path $link -Target 'C:\BL\AI\dsh-harness\node_modules\@deepseek-ai'
+New-Item -ItemType Junction -Path $link -Target "$DSH_INSTALL\node_modules\@deepseek-ai"
 ```
 
 `node_modules/` is git-ignored, so this is a per-checkout setup step, not something a user of
@@ -176,15 +179,15 @@ outside this directory.** The parts that most often matter here:
 
 - **This repository is ours alone.** `05-dsh-scribe/**` belongs to the `05` window. Do not
   write into other windows' directories, and do not let another window write here.
-- **Never install into the shared profile.** The desktop harness's `DSH_HOME` is
-  `C:/BL/AI/dsh-harness/harness` and every window on this machine shares it; concurrent pnpm
-  runs there have already emptied `node_modules` once. Use a throwaway `DSH_HOME` instead —
-  `tools/boot-check.mjs` makes one for you.
-  (This rule used to name `%APPDATA%\dsh-desktop\harness\profiles\web`. That whole tree was
-  deleted on 2026-09-21 when the harness moved; see the migration note below.)
-- **The harness moved on 2026-09-21, and hardcoded paths are how it bit us.** The install root
-  is now `C:/BL/AI/dsh-harness`; the old `C:\BL\AI\DSH Desktop` and `%APPDATA%\dsh-desktop`
-  are gone. Do not add another literal — resolve the harness in this order, first hit wins:
+- **Never install into a shared profile.** If you point at a harness other people
+  on this machine also use — a desktop install, say — its `DSH_HOME` is shared, and
+  concurrent pnpm runs there have already emptied `node_modules` once. Use a
+  throwaway `DSH_HOME` (`tools/boot-check.mjs` makes one for you), or better, stand
+  up your own harness under `$DSH_INSTALL` and test against that.
+- **The harness is found, never assumed, and never hardcoded.** A previous install
+  root was relocated on 2026-09-21 and the old trees were deleted; every literal in
+  this repository went stale at once, including the rescue message in `install.sh`.
+  So resolve it in this order, first hit wins:
 
   | # | Where | Who relies on it |
   | --- | --- | --- |
@@ -193,9 +196,12 @@ outside this directory.** The parts that most often matter here:
   | 3 | `<repo>/node_modules/@deepseek-ai/dsh` | CI's `npm install --no-save` |
   | 4 | `dsh` on PATH | a machine-level install |
 
-  None of the four ⇒ exit 2 with the exports to copy, never a silent skip. `tools/boot-check.mjs`
-  implements exactly this and is the reference for it.
-- **Ports** for this project: **31850–31859**. `3080` and `3099` are held by long-running
-  WSL DSH instances and are never ours to bind. `--port 0` sidesteps the whole question.
+  None of the four ⇒ exit 2 with the exports to copy, never a silent skip.
+  `tools/boot-check.mjs` and `tools/resolve-dsh.sh` implement exactly this, and a
+  test asserts they have not grown a literal back. **Do not add one.**
+- **Ports** for this project: **31850–31859** for the shared-harness era, and
+  **32050–32059** for a standalone `$DSH_INSTALL` lab instance. `3080` and `3099`
+  are held by long-running WSL DSH instances and are never ours to bind.
+  `--port 0` sidesteps the whole question.
 - **Shared files are append-only**: `.workbuddy/memory/MEMORY.md`, `.workbuddy/memory/*.md`,
   and the registry table inside the collaboration rules.

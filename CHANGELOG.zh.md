@@ -38,9 +38,9 @@
 - **harness 是被「找到」的，不是被假定的。** `tools/boot-check.mjs` 与 `tools/resolve-dsh.sh`
   按同一个顺序解析它 —— `--dsh-bin` → `$DSH_INSTALL` → 本地 `node_modules` 安装 → PATH 上的 `dsh`；
   `install.sh` / `uninstall.sh` **共用同一个 resolver**，而不是各自写死一个路径。
-  写死的那个正是 2026-09-21 失效的东西：桌面 harness 从 `C:\BL\AI\DSH Desktop`
-  搬到了 `C:/BL/AI/dsh-harness` —— 而 `install.sh` 的救援提示（用户装不上时**唯一**看到的指引）
-  指向两个已不存在的目录，`AGENTS.md` 也在让人遵守一条指向已消失路径的规则。
+  写死的那个正是 2026-09-21 失效的东西：桌面 harness 换了安装根、旧的安装目录与数据目录
+  一并被删 —— 而 `install.sh` 的救援提示（用户装不上时**唯一**看到的指引）指向两个已不存在的目录，
+  `AGENTS.md` 也在让人遵守一条指向已消失路径的规则。两个文件今天都不再带任何机器路径。
 - `.gitignore` 补了一条**不带斜杠**的 `node_modules`。带斜杠只匹配目录，
   所以同名的符号链接 / junction 并不会被忽略。
 - `test/run.mjs` 钉死 `--test-reporter=tap`。Node 24 把「stdout 非终端」时的默认 reporter

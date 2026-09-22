@@ -1,11 +1,23 @@
 # dsh-zcode-scribe
+
+[![test](https://github.com/BOWLUNA/dsh-zcode-scribe/actions/workflows/test.yml/badge.svg)](https://github.com/BOWLUNA/dsh-zcode-scribe/actions/workflows/test.yml)
+[![license](https://img.shields.io/badge/license-MIT-7d8a6a.svg)](LICENSE)
+[![dsh](https://img.shields.io/badge/dsh-%3E%3D0.1.5--rc.2%20%7C%7C%20%3E%3D0.1.6--alpha.1-7d8a6a.svg)](#兼容性)
+[![node](https://img.shields.io/badge/node-%3E%3D20-7d8a6a.svg)](#兼容性)
+
 `v1.0.0` · 在 dsh `>=0.1.5-rc.2 <0.2.0 || >=0.1.6-alpha.1 <0.2.0` 上开发并验证过。
 
 **给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的长期记忆——写记忆的那个组件是一个被收窄了权限的子代理。**
 
+```bash
+dsh plugin --profile web add dsh-zcode-scribe
+```
+
+![启动守卫的四条断言，以及真正抓住问题的那一条](docs/assets/boot-check.svg)
+
 > **状态：早期，只读。** `scribe_recall` 工具已注册、**在真实实例里真被执行**，
 > 且一次**真实模型会话**（dsh `0.1.6-alpha.2`）用它读出了记忆房间里的内容并答对——
-> 每条结论对应的原始输出都在 [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md)。测试 101/101。
+> 每条结论对应的原始输出都在 [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md)。测试 104/104。
 > **还不存在的**：写入、抽取，以及那个被硬收窄的写手——它卡在 **M0**
 > （先证明子代理的能力集真的能通过公开接缝被收窄）。目前还没有任何东西注入 prompt，
 > 所以装它改变的是模型**能问什么**，不是它**知道什么**。
@@ -13,6 +25,32 @@
 [English](README.md)
 
 ---
+
+## 它从 ZCode 取了什么，以及在哪里走得更远
+
+[ZCode](https://github.com/zai-org/ZCode)（`zai-org/ZCode`，连同
+[`zai-org/GLM-skills`](https://github.com/zai-org/GLM-skills)）是这个项目记忆模型的出处：
+抽取子代理、一行式主题描述的召回清单、纯 markdown 的记忆房间。这是**出处，不是依赖**——
+装它不需要 ZCode、不需要 GLM key、不需要任何厂商凭据；模型能力一律走宿主自己的 `ctx.llm`。
+
+| ZCode 有什么 | 本插件取了什么 | 本插件多了什么（**优于**在哪） | 证据 |
+| --- | --- | --- | --- |
+| `core/src/memory/extraction.ts:42` `buildMemoryExtractionPrompt` | 抽取子代理的提示词骨架：分析最近 N 条消息、优先更新已有文件而不是造重复文件、无事可存时只输出 `Nothing to save.` | 提示词由本插件自己构造，并点名记忆**类型**与房间自己定义的 frontmatter 格式 | 尚未写——抽取半边卡在 M0，见下 |
+| `extraction.ts:68` `evaluateMemoryExtraction` 的 `direct-memory-write` 跳过条件 | 跳过条件的思路：本轮 agent 已经写过房间，就不在其上再抽一次 | 它要用到的「包含性判定」是本插件自己的 `src/paths.mjs`——一个 52 条表驱动用例的纯函数，而不是必须信任入参的路径助手 | `test/paths.test.mjs` |
+| `extraction.ts:78` 的 `no-user-prose` 跳过条件，阈值 `MINIMUM_USER_WORDS = 3`（`extraction.ts:6`） | 阈值本身，以及「数的是**用户**的散文，不是任意消息」 | 同一个数字是配置键（`minUserWords`），可按 profile 调，而不是模块常量 | `cordis.patch.yml` `minUserWords: 3` |
+| `extraction.ts:228` `containsDirectMemoryWrite` | 「这是不是一次记忆写入」要拿工具路径对房间做归属判定 | ZCode 没有对应物：`checkMemoryPath()` 在比对**之前**就拒绝目录穿越、Unicode 夹带与 NTFS 备用数据流，且它是写路径上的**唯一**闸门 | `test/paths.test.mjs`，52 例 |
+| `core/src/subagent/profile.ts:78` 的子代理 `tools:` 白名单 | 用「点名它能用哪些工具」来收窄子代理 | **ZCode 在抽取子代理的 provider request 里保留父级的完整工具目录，只在 tool-use 边界收窄**——它自己的注释就这么写（`core/src/memory/memory-agent-loop.ts:70`）。本设计是让工具**从模型能看到的 scope 里消失**（`ctx.tools.restrict`），于是**没有东西可调**，而不是「调了会被拒」 | M0 探针——**尚未证明，见下** |
+| `tool/executor/memory-file-permission.ts:22` 放行记忆目录下 `.md` 的 `Write`/`Edit` | 「把权限规则限定在记忆目录」这个想法 | 那条规则是**放行**；本插件的写手是被设计成**没有别的能力可放行** | `cordis.patch.yml` `narrowWriter: true` |
+
+**哪里还没超过 ZCode（如实留白）**：ZCode 今天有一条能跑的抽取路径，本插件没有——
+它只交付读半边，且在 M0 通过前**拒绝**做抽取。这是诚实的状态，也正是这张表里
+必须有一行写「尚未证明」的原因：一张没有这种行的对照表就是宣传。
+
+### M0 门禁，写成一个可测的问题
+
+**子代理的能力集能否通过 DSH 的公开接缝被收窄？** 能，抽取就建在它之上；
+不能，抽取就**不做**——退路**不是**「让主 agent 用全套工具去写记忆」。
+已执行到哪一步、哪一步失败、原始输出是什么，都在 [`issues/M0-1`](issues/)。
 
 ## 它到底在解决什么问题
 
