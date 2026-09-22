@@ -36,19 +36,41 @@ memory room of plain markdown. That lineage is a credit, not a dependency — no
 a ZCode install, a GLM key, or any vendor credential; model capability goes through the host's
 own `ctx.llm`.
 
-| What ZCode has | What this takes from it | Where this goes further | Evidence |
+| What ZCode has | What this takes from it | Where this goes further | Evidence (a command or a test name) |
 | --- | --- | --- | --- |
-| `core/src/memory/extraction.ts:42` `buildMemoryExtractionPrompt` | The extraction-subagent prompt: analyse the last N messages, prefer updating an existing file over creating a duplicate, output `Nothing to save.` when there is nothing | The prompt is built by this plugin rather than borrowed wholesale, and it names memory *types* and a frontmatter format the room itself defines | not written yet — the extraction half is gated on M0, see below |
-| `extraction.ts:68` `evaluateMemoryExtraction` — skip on `direct-memory-write` | The skip-condition idea: if the agent already wrote to the room this turn, do not extract on top of it | The containment test it needs is this plugin's own `src/paths.mjs` — a pure function with 52 table cases, not a helper that has to trust its inputs | `test/paths.test.mjs` |
-| `extraction.ts:78` — skip on `no-user-prose`, with `MINIMUM_USER_WORDS = 3` (`extraction.ts:6`) | The threshold, and that it counts *user* prose rather than any message | The same number is a config key (`minUserWords`), so it is tunable per profile instead of a module constant | `cordis.patch.yml` `minUserWords: 3` |
-| `extraction.ts:228` `containsDirectMemoryWrite` | Deciding "was this a memory write" by resolving the tool's path against the room | No ZCode counterpart: `checkMemoryPath()` refuses traversal, Unicode smuggling and NTFS alternate data streams **before** the comparison, and it is the only gate on the write path | `test/paths.test.mjs`, 52 cases |
-| `core/src/subagent/profile.ts:78` — subagent `tools:` allowlists | Narrowing a subagent by naming the tools it may use | **ZCode keeps the parent's full tool catalogue in the extraction subagent's provider request and narrows only at the tool-use boundary** — its own note says so at `core/src/memory/memory-agent-loop.ts:70`. The design here removes the tools from the scope the model sees (`ctx.tools.restrict`), so there is nothing to call, rather than a call to refuse | M0 probe — **not yet proven, see below** |
-| `tool/executor/memory-file-permission.ts:22` — grants `Write`/`Edit` on memory `.md` | The notion of a permission rule scoped to the memory directory | That rule *allows*; this plugin's writer is designed to have no other capability to allow | `cordis.patch.yml` `narrowWriter: true` |
+| `core/src/memory/extraction.ts:42` `buildMemoryExtractionPrompt` | The extraction-subagent prompt: analyse the last N messages, prefer updating an existing file over creating a duplicate, output `Nothing to save.` when there is nothing | The prompt is built by this plugin rather than borrowed wholesale, and it names memory *types* and a frontmatter format the room itself defines | **Not yet proven** — the extraction half is not written; the gate is `issues/M0-1` |
+| `extraction.ts:68` `evaluateMemoryExtraction` — skip on `direct-memory-write` | The skip-condition idea: if the agent already wrote to the room this turn, do not extract on top of it | The containment test it needs is this plugin's own `src/paths.mjs` — a pure function with 52 table cases, not a helper that has to trust its inputs | `node test/run.mjs` › `test/paths.test.mjs` (52 cases, e.g. `truncates at the first colon so an NTFS stream cannot hide a reserved name`) |
+| `extraction.ts:78` — skip on `no-user-prose`, with `MINIMUM_USER_WORDS = 3` (`extraction.ts:6`) | The threshold, and that it counts *user* prose rather than any message | The same number is a config key (`minUserWords`), so it is tunable per profile instead of a module constant | `index.js:124` (`minUserWords: z.number().default(3)`) · `node test/run.mjs` › `test/apply.test.mjs` › `narrows the writer, refuses secrets, and caps the index` |
+| `extraction.ts:228` `containsDirectMemoryWrite` | Deciding "was this a memory write" by resolving the tool's path against the room | No ZCode counterpart: `checkMemoryPath()` refuses traversal, Unicode smuggling and NTFS alternate data streams **before** the comparison, and it is the only gate on the write path | `node test/run.mjs` › `test/paths.test.mjs` › `strips bidirectional overrides, which render a name as its reverse` and `truncates at the first colon so an NTFS stream cannot hide a reserved name` |
+| `core/src/subagent/profile.ts:78` — subagent `tools:` allowlists | Narrowing a subagent by naming the tools it may use | **ZCode keeps the parent's full tool catalogue in the extraction subagent's provider request and narrows only at the tool-use boundary** — its own note says so at `core/src/memory/memory-agent-loop.ts:70`. The design here removes the tools from the scope the model sees (`ctx.tools.restrict`), so there is nothing to call, rather than a call to refuse | **Not yet proven** — `plugins/memory/dsh-zcode-scribe/lab/05-m0-probe.mjs` was executed and reached no agent ctx on a session-less boot. See `issues/M0-1` |
+| `tool/executor/memory-file-permission.ts:22` — grants `Write`/`Edit` on memory `.md` | The notion of a permission rule scoped to the memory directory | That rule *allows*; this plugin's writer is designed to have no other capability to allow | `node test/run.mjs` › `test/apply.test.mjs` › `narrows the writer, refuses secrets, and caps the index` — proves the key and its default; **the narrowing itself: Not yet proven** |
 
 **Where this does not (yet) beat ZCode:** ZCode has a working extraction path today and this
 does not. This ships the read half and refuses to extract until M0 clears. That is the honest
 state, and it is why the table has a "not yet proven" row rather than a claim — a table with no
 such row would be marketing.
+
+### Reproducing the comparison
+
+Every row above is meant to be checkable from a clean clone. These are the commands, and they
+were run before this paragraph was written:
+
+```bash
+git clone https://github.com/BOWLUNA/dsh-zcode-scribe && cd dsh-zcode-scribe
+npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.6-alpha.2   # the peer packages
+npm install -g pnpm@12                     # `dsh plugin add` forwards to pnpm; dsh does not bundle it
+node test/run.mjs                          # 104 checks
+node tools/boot-check.mjs --port 32050     # boots the plugin; finds the harness in ./node_modules
+```
+
+**The peer install is not optional, and that is measured rather than assumed.** Skipping it makes
+the suites that import `index.js` fail to resolve `@deepseek-ai/*`, and the run reports a
+partial summary — `57 / 8 / 55 / 2` against `104 / 16 / 104 / 0` for tests, suites, passing and
+failing — which is a clean-looking run that says nothing about the plugin. Measured in a fresh clone with and without the step.
+
+The ZCode half of the table is read from a [ZCode](https://github.com/zai-org/ZCode) checkout,
+one named file and line at a time. Nothing here needs a model, a credential or a network call —
+if a row cannot be checked that way, it says **Not yet proven** instead.
 
 ### The M0 gate, stated as a testable question
 

@@ -33,18 +33,37 @@ dsh plugin --profile web add dsh-zcode-scribe
 抽取子代理、一行式主题描述的召回清单、纯 markdown 的记忆房间。这是**出处，不是依赖**——
 装它不需要 ZCode、不需要 GLM key、不需要任何厂商凭据；模型能力一律走宿主自己的 `ctx.llm`。
 
-| ZCode 有什么 | 本插件取了什么 | 本插件多了什么（**优于**在哪） | 证据 |
+| ZCode 有什么 | 本插件取了什么 | 本插件多了什么（**优于**在哪） | 证据（一条命令或一个测试名） |
 | --- | --- | --- | --- |
-| `core/src/memory/extraction.ts:42` `buildMemoryExtractionPrompt` | 抽取子代理的提示词骨架：分析最近 N 条消息、优先更新已有文件而不是造重复文件、无事可存时只输出 `Nothing to save.` | 提示词由本插件自己构造，并点名记忆**类型**与房间自己定义的 frontmatter 格式 | 尚未写——抽取半边卡在 M0，见下 |
-| `extraction.ts:68` `evaluateMemoryExtraction` 的 `direct-memory-write` 跳过条件 | 跳过条件的思路：本轮 agent 已经写过房间，就不在其上再抽一次 | 它要用到的「包含性判定」是本插件自己的 `src/paths.mjs`——一个 52 条表驱动用例的纯函数，而不是必须信任入参的路径助手 | `test/paths.test.mjs` |
-| `extraction.ts:78` 的 `no-user-prose` 跳过条件，阈值 `MINIMUM_USER_WORDS = 3`（`extraction.ts:6`） | 阈值本身，以及「数的是**用户**的散文，不是任意消息」 | 同一个数字是配置键（`minUserWords`），可按 profile 调，而不是模块常量 | `cordis.patch.yml` `minUserWords: 3` |
-| `extraction.ts:228` `containsDirectMemoryWrite` | 「这是不是一次记忆写入」要拿工具路径对房间做归属判定 | ZCode 没有对应物：`checkMemoryPath()` 在比对**之前**就拒绝目录穿越、Unicode 夹带与 NTFS 备用数据流，且它是写路径上的**唯一**闸门 | `test/paths.test.mjs`，52 例 |
-| `core/src/subagent/profile.ts:78` 的子代理 `tools:` 白名单 | 用「点名它能用哪些工具」来收窄子代理 | **ZCode 在抽取子代理的 provider request 里保留父级的完整工具目录，只在 tool-use 边界收窄**——它自己的注释就这么写（`core/src/memory/memory-agent-loop.ts:70`）。本设计是让工具**从模型能看到的 scope 里消失**（`ctx.tools.restrict`），于是**没有东西可调**，而不是「调了会被拒」 | M0 探针——**尚未证明，见下** |
-| `tool/executor/memory-file-permission.ts:22` 放行记忆目录下 `.md` 的 `Write`/`Edit` | 「把权限规则限定在记忆目录」这个想法 | 那条规则是**放行**；本插件的写手是被设计成**没有别的能力可放行** | `cordis.patch.yml` `narrowWriter: true` |
+| `core/src/memory/extraction.ts:42` `buildMemoryExtractionPrompt` | 抽取子代理的提示词骨架：分析最近 N 条消息、优先更新已有文件而不是造重复文件、无事可存时只输出 `Nothing to save.` | 提示词由本插件自己构造，并点名记忆**类型**与房间自己定义的 frontmatter 格式 | **尚未证明** —— 抽取半边还没写；门禁见 `issues/M0-1` |
+| `extraction.ts:68` `evaluateMemoryExtraction` 的 `direct-memory-write` 跳过条件 | 跳过条件的思路：本轮 agent 已经写过房间，就不在其上再抽一次 | 它要用到的「包含性判定」是本插件自己的 `src/paths.mjs`——一个 52 条表驱动用例的纯函数，而不是必须信任入参的路径助手 | `node test/run.mjs` › `test/paths.test.mjs`（52 例，例如 `truncates at the first colon so an NTFS stream cannot hide a reserved name`） |
+| `extraction.ts:78` 的 `no-user-prose` 跳过条件，阈值 `MINIMUM_USER_WORDS = 3`（`extraction.ts:6`） | 阈值本身，以及「数的是**用户**的散文，不是任意消息」 | 同一个数字是配置键（`minUserWords`），可按 profile 调，而不是模块常量 | `index.js:124`（`minUserWords: z.number().default(3)`）· `node test/run.mjs` › `test/apply.test.mjs` › `narrows the writer, refuses secrets, and caps the index` |
+| `extraction.ts:228` `containsDirectMemoryWrite` | 「这是不是一次记忆写入」要拿工具路径对房间做归属判定 | ZCode 没有对应物：`checkMemoryPath()` 在比对**之前**就拒绝目录穿越、Unicode 夹带与 NTFS 备用数据流，且它是写路径上的**唯一**闸门 | `node test/run.mjs` › `test/paths.test.mjs` › `strips bidirectional overrides, which render a name as its reverse` 与 `truncates at the first colon so an NTFS stream cannot hide a reserved name` |
+| `core/src/subagent/profile.ts:78` 的子代理 `tools:` 白名单 | 用「点名它能用哪些工具」来收窄子代理 | **ZCode 在抽取子代理的 provider request 里保留父级的完整工具目录，只在 tool-use 边界收窄**——它自己的注释就这么写（`core/src/memory/memory-agent-loop.ts:70`）。本设计是让工具**从模型能看到的 scope 里消失**（`ctx.tools.restrict`），于是**没有东西可调**，而不是「调了会被拒」 | **尚未证明** —— `plugins/memory/dsh-zcode-scribe/lab/05-m0-probe.mjs` 已执行，但在无会话的启动里拿不到任何 agent ctx。见 `issues/M0-1` |
+| `tool/executor/memory-file-permission.ts:22` 放行记忆目录下 `.md` 的 `Write`/`Edit` | 「把权限规则限定在记忆目录」这个想法 | 那条规则是**放行**；本插件的写手是被设计成**没有别的能力可放行** | `node test/run.mjs` › `test/apply.test.mjs` › `narrows the writer, refuses secrets, and caps the index` —— 证明该配置键及其默认值；**收窄本身：尚未证明** |
 
 **哪里还没超过 ZCode（如实留白）**：ZCode 今天有一条能跑的抽取路径，本插件没有——
 它只交付读半边，且在 M0 通过前**拒绝**做抽取。这是诚实的状态，也正是这张表里
 必须有一行写「尚未证明」的原因：一张没有这种行的对照表就是宣传。
+
+### 怎么自己复核这张表
+
+上面每一行都应能从一次干净 clone 复核出来。命令如下，且**在写这段之前已经实跑过一遍**：
+
+```bash
+git clone https://github.com/BOWLUNA/dsh-zcode-scribe && cd dsh-zcode-scribe
+npm install --no-save --no-audit --no-fund @deepseek-ai/dsh@0.1.6-alpha.2   # peer 包
+npm install -g pnpm@12                     # `dsh plugin add` 是 forward 给 pnpm 的，dsh 不自带
+node test/run.mjs                          # 104 项检查
+node tools/boot-check.mjs --port 32050     # 真启动；harness 从 ./node_modules 自动找到
+```
+
+**那一步 peer 安装不是可选的，这是实测出来的、不是推测的。** 跳过它，import `index.js` 的套件
+解析不到 `@deepseek-ai/*`，整轮只会给出一个残缺的摘要 —— `57 / 8 / 55 / 2`，
+而完整跑是 `104 / 16 / 104 / 0`（依次为 tests · suites · pass · fail）—— 一个看着干净的残跑，却什么也没说明。**在干净 clone 里带/不带这一步各跑过一遍。**
+
+表里 ZCode 那一半，是拿 [ZCode](https://github.com/zai-org/ZCode) 检出**逐文件逐行**读出来的。
+以上不需要模型、不需要凭据、不需要联网 —— 若某一行没法这样核，它就直接写 **尚未证明**。
 
 ### M0 门禁，写成一个可测的问题
 
