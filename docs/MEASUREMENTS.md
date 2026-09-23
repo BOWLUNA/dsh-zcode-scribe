@@ -13,9 +13,9 @@
 
 ```
 $ node test/run.mjs
-# tests 104
-# suites 16
-# pass 104
+# tests 130
+# suites 18
+# pass 130
 # fail 0
 ```
 

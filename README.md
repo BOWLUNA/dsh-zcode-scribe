@@ -7,6 +7,28 @@
 
 `v1.0.0` · developed and verified against dsh `>=0.1.5-rc.2 <0.2.0 || >=0.1.6-alpha.1 <0.2.0`.
 
+### Compatibility, and what it does not cover
+
+| dsh line | Status | How it is known |
+| --- | --- | --- |
+| `0.1.5-rc.2` | tested | CI matrix; boot check green |
+| `0.1.5-rc.3` | inside the declared range | `npm view @deepseek-ai/dsh dist-tags` → `latest` |
+| `0.1.6-alpha.2` | tested | CI matrix; boot check green |
+| `0.1.7-alpha.2` | **installs and boots, but NOT declared** | measured: `plugin add` exit 0 · `--dump-config` exit 0 / 178 rows / 0-byte stderr · boot answers on the port with 0-byte stderr. It is outside `engines.dsh` on purpose — see below |
+| anything `>=0.2.0` | not supported | the range is exclusive |
+
+**Why 0.1.7 is not declared even though it boots.** `0.1.7-alpha.1` replaced the plural
+`dsh-agent-presets` package with a singular `dsh-agent-preset` plus a declarative registry, and
+moved presets from directory scanning to bundle-declared registration. This plugin does not touch
+that surface — `grep -ri "agent-preset\|agentPresets\|compaction-basic"` matches one file, and
+that file cites `dsh-agent-presets` as *evidence* for a pattern rather than depending on it; the
+seams this plugin uses are `ctx.tools.register`, `ctx.systemPrompt.section`, `ctx.subagents`,
+`ctx.effect`, `ctx.inject` and `ctx.logger`. A boot is not the same as working, though: 0.1.7
+also ships a settings page that its own capability guard can disable wholesale while the process
+still serves. Declaring support on the strength of "it booted once" is how a compatibility claim
+becomes a lie. When the 0.1.7 line stabilises, this table gains a tested row and `engines.dsh`
+widens — and the widening has to come with a real session, not a boot.
+
 **Long-term memory for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) whose writer is a narrowed subagent.**
 
 ```bash
@@ -18,7 +40,7 @@ dsh plugin --profile web add dsh-zcode-scribe
 > **Status: early, and read-only.** The `scribe_recall` tool is registered, executes for real
 > inside a live host, and a real model session on dsh `0.1.6-alpha.2` used it to answer from a
 > memory room — [`docs/MEASUREMENTS.md`](docs/MEASUREMENTS.md) carries the raw output behind
-> every claim below. 104 tests pass. What does **not** exist yet: writes, extraction, and the
+> every claim below. 130 tests pass. What does **not** exist yet: writes, extraction, and the
 > narrowed writer, which is gated on milestone **M0** — proving a subagent's capability set can
 > actually be narrowed through a public seam. Nothing is injected into the prompt yet, so
 > installing this changes what the model can *ask for*, not what it knows.
@@ -65,7 +87,7 @@ node tools/boot-check.mjs --port 32050     # boots the plugin; finds the harness
 
 **The peer install is not optional, and that is measured rather than assumed.** Skipping it makes
 the suites that import `index.js` fail to resolve `@deepseek-ai/*`, and the run reports a
-partial summary — `57 / 8 / 55 / 2` against `104 / 16 / 104 / 0` for tests, suites, passing and
+partial summary — `57 / 8 / 55 / 2` against `130 / 18 / 130 / 0` for tests, suites, passing and
 failing — which is a clean-looking run that says nothing about the plugin. Measured in a fresh clone with and without the step.
 
 The ZCode half of the table is read from a [ZCode](https://github.com/zai-org/ZCode) checkout,

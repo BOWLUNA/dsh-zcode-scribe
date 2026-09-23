@@ -7,6 +7,25 @@
 
 `v1.0.0` · 在 dsh `>=0.1.5-rc.2 <0.2.0 || >=0.1.6-alpha.1 <0.2.0` 上开发并验证过。
 
+### 兼容性，以及它**没有**覆盖什么
+
+| dsh 线 | 状态 | 依据 |
+| --- | --- | --- |
+| `0.1.5-rc.2` | 已测 | CI 矩阵；启动守卫绿 |
+| `0.1.5-rc.3` | 在声明范围内 | `npm view @deepseek-ai/dsh dist-tags` → `latest` |
+| `0.1.6-alpha.2` | 已测 | CI 矩阵；启动守卫绿 |
+| `0.1.7-alpha.2` | **能装能起，但刻意不声明** | 实测：`plugin add` exit 0 · `--dump-config` exit 0 / 178 行 / stderr 0 字节 · 真启动端口应答且 stderr 0 字节。它在 `engines.dsh` 之外是**有意的**，理由见下 |
+| 任何 `>=0.2.0` | 不支持 | 范围是排他的 |
+
+**为什么它明明起得来却不声明。** `0.1.7-alpha.1` 把复数包 `dsh-agent-presets` 换成了单数
+`dsh-agent-preset` + 声明式注册表，并把 preset 从「扫描目录」改成「bundle 声明式注册」。
+本插件**不碰那条面** —— `grep -ri "agent-preset\|agentPresets\|compaction-basic"` 只命中一个文件，
+而那个文件是把 `dsh-agent-presets` 当作某个模式的**取证来源**引用，不是依赖；本插件用到的接缝是
+`ctx.tools.register` / `ctx.systemPrompt.section` / `ctx.subagents` / `ctx.effect` / `ctx.inject` / `ctx.logger`。
+但**能起 ≠ 能用**：0.1.7 还带来一个设置页，而它**自己的能力守卫可以在进程照常服务的情况下把整个设置页禁用**。
+凭「起过一次」就声明支持，是兼容性声明变成谎话的典型路径。等 0.1.7 线稳定，
+这张表会多一行「已测」并放宽 `engines.dsh` —— 而放宽必须伴随一次**真实会话**，不是一次启动。
+
 **给 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 的长期记忆——写记忆的那个组件是一个被收窄了权限的子代理。**
 
 ```bash
@@ -60,7 +79,7 @@ node tools/boot-check.mjs --port 32050     # 真启动；harness 从 ./node_modu
 
 **那一步 peer 安装不是可选的，这是实测出来的、不是推测的。** 跳过它，import `index.js` 的套件
 解析不到 `@deepseek-ai/*`，整轮只会给出一个残缺的摘要 —— `57 / 8 / 55 / 2`，
-而完整跑是 `104 / 16 / 104 / 0`（依次为 tests · suites · pass · fail）—— 一个看着干净的残跑，却什么也没说明。**在干净 clone 里带/不带这一步各跑过一遍。**
+而完整跑是 `130 / 18 / 130 / 0`（依次为 tests · suites · pass · fail）—— 一个看着干净的残跑，却什么也没说明。**在干净 clone 里带/不带这一步各跑过一遍。**
 
 表里 ZCode 那一半，是拿 [ZCode](https://github.com/zai-org/ZCode) 检出**逐文件逐行**读出来的。
 以上不需要模型、不需要凭据、不需要联网 —— 若某一行没法这样核，它就直接写 **尚未证明**。

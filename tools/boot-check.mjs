@@ -159,6 +159,57 @@ function makeHome() {
 const HOME = makeHome()
 const ENV = { ...process.env, DSH_HOME: HOME, NO_COLOR: '1', FORCE_COLOR: '0' }
 
+/**
+ * Assertion D — a whitelist of fatal patterns, not "stderr must be silent".
+ *
+ * The first version required stderr to be byte-empty at the moment the port
+ * answered, and that was too coarse: a plugin that degrades gracefully and *says
+ * so* was reported as a failure. Measured on a sibling plugin in this family
+ * (`dsh-zcode-rewind`, run 35755426628): the port answered, the process stayed
+ * alive, and stderr carried 266 bytes of that plugin's own actionable downgrade
+ * notice — "@deepseek-ai/dsh-tools unreachable: tool registration skipped (the
+ * capture hook still works). Fix: install with `dsh plugin add`, or point
+ * DSH_ROOT at the dsh install root". That is a healthy boot with an honest log
+ * line, and calling it a failure trains people to ignore the guard.
+ *
+ * So the question is not "was stderr silent" but "did stderr say anything fatal".
+ * Two rules keep that from becoming a way to delete the assertion:
+ *
+ *   1. Every allowed pattern is listed here, with the reason it is tolerable.
+ *      There is no catch-all, and an unlisted line is a failure.
+ *   2. Tolerated output is still printed, line by line. A downgrade nobody sees
+ *      is a downgrade nobody fixes.
+ *
+ * The patterns are the ways a plugin tree fails to come up in this family, each
+ * observed for real: an unresolved import (the rename defect that shipped in
+ * 1.0.0), a package the loader cannot find, a failed apply/import of a loader
+ * entry, a tool-name collision (a hard boot failure, not an override), and a tool
+ * definition the host rejects at `defineTool()` time.
+ */
+const FATAL_STDERR = [
+  { pattern: /ERR_MODULE_NOT_FOUND/, why: 'an import in the plugin tree cannot resolve — the profile will not boot' },
+  { pattern: /Cannot find package/, why: 'the loader resolved a row name to a package that is not installed' },
+  { pattern: /failed to load/i, why: 'a loader entry threw while being applied' },
+  { pattern: /failed to import/i, why: 'a loader entry could not be imported' },
+  { pattern: /is already registered/, why: 'a tool-name collision — a hard boot failure, not an override' },
+  { pattern: /UNSUPPORTED_SCHEMA/, why: 'a tool definition the host rejects at defineTool() time, i.e. during boot' },
+]
+
+/** The lines in `text` that match a fatal pattern. */
+function fatalLines(text) {
+  const found = []
+  for (const line of String(text).split('\n')) {
+    if (line.trim() === '') continue
+    for (const { pattern, why } of FATAL_STDERR) {
+      if (pattern.test(line)) {
+        found.push({ line: line.trim(), why })
+        break
+      }
+    }
+  }
+  return found
+}
+
 function cleanup() {
   if (KEEP) {
     note(`keeping ${HOME} (--keep)`)
@@ -407,18 +458,28 @@ await stop()
 
 const bytesAtConnect = Buffer.byteLength(stderrAtConnect)
 const bytesTotal = Buffer.byteLength(stderr)
+const fatal = fatalLines(stderrAtConnect)
 note(`C. 127.0.0.1:${PORT} answered · ${diedEarly === null ? 'still serving when this check stopped it' : `exited early (code ${diedEarly.code})`}`)
 note(`D. stderr bytes: ${bytesAtConnect} at the moment the port answered · ${bytesTotal} including teardown`)
-
 if (diedEarly !== null) {
   cleanup()
   process.stderr.write(`boot-check: --- stderr ---\n${stderr}\n`)
   fail('C', `the harness exited (code ${diedEarly.code}) right after answering — it never served.`)
 }
-if (bytesAtConnect > 0) {
+if (fatal.length > 0) {
   cleanup()
   process.stderr.write(`boot-check: --- stderr (up to the first answer) ---\n${stderrAtConnect}\n`)
-  fail('D', `the boot wrote to stderr before it finished starting (${bytesAtConnect} bytes).`)
+  fail(
+    'D',
+    `the boot wrote ${fatal.length} fatal line(s) to stderr before it finished starting:\n` +
+      fatal.map((entry) => `  ${entry.line}\n    (${entry.why})`).join('\n'),
+  )
+}
+if (bytesAtConnect > 0) {
+  note(`D. tolerated ${bytesAtConnect} byte(s) of non-fatal downgrade output (listed below, never ignored):`)
+  for (const line of String(stderrAtConnect).split('\n')) {
+    if (line.trim() !== '') note(`D.   | ${line.trim()}`)
+  }
 }
 if (bytesTotal > bytesAtConnect) {
   note(`note: ${bytesTotal - bytesAtConnect} bytes of teardown output after shutdown, ignored by design`)
