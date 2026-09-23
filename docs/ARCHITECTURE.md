@@ -135,15 +135,21 @@ inferred. Line references are to those builds.
 
 ### 3.1 Seams actually used
 
+Line numbers below are for **`@deepseek-ai/dsh@0.1.6-alpha.2`**, the build this repository's own
+lab instance runs. They are not stable across dsh releases — a sibling build puts the same
+`restrict()` at line 2790 and the same `ctx.on("agent/created")` at 1320 — so treat the file and
+the symbol as the assertion and the number as a pointer into one specific build. When they drift,
+re-derive them from the build you are actually testing against rather than trusting this table.
+
 | Need | Seam | Contract evidence |
 | --- | --- | --- |
-| Remove capabilities from the writer | `ctx.tools.restrict({ allow?, deny? })` | `dsh-tools/lib/index.js:2790`. **Requires a scoped context** (`agent.ctx`) — a context-global restriction throws by design. Unknown names, empty filters, scope-local names and `run_code` all **throw**. Restrictions intersect. Returns the exact disposer. |
-| Constrain arguments of the tools that remain | `ctx.tools.guard(fn)` | `dsh-tools/lib/index.js:2816`. Synchronous, runs after the `tools/pre-execute` waterfall. **Returning a string denies.** Monotonic: any guard may deny, none may force-allow. Registered on `agent.ctx` it applies to that agent only. |
-| Notice the writer being born | `ctx.on("agent/created", ({ agent }) => …)` | `dsh-agent/lib/index.js:543` emits it; `dsh-agent-presets/lib/index.js:1320` subscribes exactly this way — a shipped plugin doing it, so the pattern is supported, not incidental. |
+| Remove capabilities from the writer | `ctx.tools.restrict({ allow?, deny? })` | `dsh-tools/lib/index.js:2893`. **Requires a scoped context** (`agent.ctx`) — a context-global restriction throws by design. Unknown names, empty filters, scope-local names and `run_code` all **throw**. Restrictions intersect. Returns the exact disposer. |
+| Constrain arguments of the tools that remain | `ctx.tools.guard(fn)` | `dsh-tools/lib/index.js:2919`. Synchronous, runs after the `tools/pre-execute` waterfall. **Returning a string denies.** Monotonic: any guard may deny, none may force-allow. Registered on `agent.ctx` it applies to that agent only. |
+| Notice the writer being born | `ctx.on("agent/created", ({ agent }) => …)` | `dsh-agent/lib/index.js:545` emits it; `dsh-agent-presets/lib/index.js:1301` subscribes exactly this way — a shipped plugin doing it, so the pattern is supported, not incidental. |
 | Trigger extraction | `ctx.on("agent/post-step", …)` | Listed among the emitted agent events (`agent/pre-step`, `agent/post-step`, `agent/status`, `agent/inbox/*`). |
 | Inject index + manifest | `ctx.systemPrompt.section({ name, order, text })` | `dsh-system-prompt`. `dsh-custom-mode` uses the same seam. Order budget: harness identity is `-100`, persona `0` — we sit at `-50`, the same slot `dsh-memento` chose, so memory text precedes persona. |
 | Read / write memory files | `ctx.fs` (not `node:fs`) | The harness's own tool implementations use it; it is the seam that respects the workspace boundary. `node:fs` is used *only* for the guard's cheap `stat` on the pinned index path. |
-| Mint the writer | `ctx.subagents` (`@deepseek-ai/dsh-subagent`) | Service name `subagents` (`dsh-subagent/lib/index.js:2853`). Its `materializeTracked` runs a `setup(childCtx, child)` callback before the child starts — **`childCtx` is the scoped context `restrict()`/`guard()` require.** |
+| Mint the writer | `ctx.subagents` (`@deepseek-ai/dsh-subagent`) | Service name `subagents` (`dsh-subagent/lib/index.js:2901`). Its `materializeTracked` runs a `setup(childCtx, child)` callback before the child starts — **`childCtx` is the scoped context `restrict()`/`guard()` require.** |
 | Announce ourselves in `AGENTS.md` ordering | `dsh-agent-instructions` | Instruction files are injected as a *user* message after the system prompt. Our section must not assume it is alone. |
 
 > **Why this is better than the original plan.** `DSH插件项目/04-dsh-memory.md` assumed the
