@@ -9,6 +9,14 @@
 #
 # The matrix pins exactly the versions `engines.dsh` declares;
 # tools/verify-version-consistency.mjs fails the build when the two drift apart.
+#
+# 0.1.5-rc.3 was added on 2026-09-24 because it is npm's `latest`: the version a
+# user gets when they do not pin one. The declared range covered it, but no leg
+# had ever run on it — which made "supported" a claim rather than a result. It is
+# listed in the matrix list below rather than in `include`, because
+# tools/verify-version-consistency.mjs decides "which versions CI tests" by
+# reading that list; a leg added through `include` alone would fail its own
+# `--dsh <version>` assertion.
 name: test
 
 permissions:
@@ -28,7 +36,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         node-version: ['22']
-        dsh: ['0.1.5-rc.2', '0.1.6-alpha.2']
+        dsh: ['0.1.5-rc.2', '0.1.6-alpha.2', '0.1.5-rc.3']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
